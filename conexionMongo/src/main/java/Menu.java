@@ -1,11 +1,13 @@
+import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import org.bson.Document;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -17,6 +19,7 @@ public class Menu {
         }
 
     };
+    private static final Logger logger = LoggerFactory.getLogger(Conexion.class);
     public void mostrarMenu(){
 
         Integer opcion = null;
@@ -41,16 +44,15 @@ public class Menu {
                     opcion = null;
                     break;
                 case 2:
-                    this.opcionesRanking();
+                    this.mostrarLibros();
                     opcion = null;
                     break;
                 case 3:
-                    this.jugar();
-                    this.obtenerClasificaciones();
+                    this.modificarLibro();
                     opcion = null;
                     break;
                 case 4:
-                    this.borrarCuenta();
+                    this.borrarLibro();
                     break;
                 case 5:
                     System.exit(0);
@@ -69,12 +71,12 @@ public class Menu {
     public void crearLibro(){
         String nombreLibro = this.devolverString("Introduce el nombre para el libro ", this.columnasExpresiones.get("nombre"), true);
         String nombreAutor = this.devolverString("Introduce el nombre del autor del libro ", this.columnasExpresiones.get("nombre"), true);
-        Integer paginas = this.devolverInteger("Cantidad de páginas");
+        Integer paginas = this.devolverInteger("Cantidad de páginas",false);
         String fecha = this.devolverString("Introduce la fecha de lanzamiento",this.columnasExpresiones.get("fecha"),true);
         MongoDatabase baseDatos = Conexion.getDatabase();
         MongoCollection<Document> coleccionLibros = baseDatos.getCollection("libros");
 
-        Document libro = new Document("nombre", nombreLibro)
+        Document libro = new Document("titulo", nombreLibro)
                 .append("autor", nombreAutor)
                 .append("numeroDePaginas", paginas)
                 .append("fechaDeLanzamiento", fecha);
@@ -82,7 +84,101 @@ public class Menu {
         coleccionLibros.insertOne(libro);
         Conexion.close();
     }
+    /**
+     * Método que muestra los libros por terminal
+     * */
+    public void mostrarLibros(){
+        MongoDatabase baseDatos = Conexion.getDatabase();
+        MongoCollection<Document> coleccionLibros = baseDatos.getCollection("libros");
+        FindIterable<Document> documentos = coleccionLibros.find();
+        Document primerDocumento = documentos.first();
 
+        if (primerDocumento == null) {
+            System.out.println("No hay libros");
+            logger.info("No hay libros");
+            return;
+        }
+        for (Document documento : documentos) {
+            System.out.println(documento.toJson());
+        }
+        Conexion.close();
+    }
+    /**
+     * Método que modifica un libro
+     * */
+    public void modificarLibro(){
+        MongoDatabase baseDatos = Conexion.getDatabase();
+        MongoCollection<Document> collection = baseDatos.getCollection("libros");
+        String nombreLibro = this.devolverString("Introduce el nombre del libro a modificar ", this.columnasExpresiones.get("nombre"), true);
+        FindIterable<Document> documento = collection.find(new Document("titulo", nombreLibro));
+        Document document = documento.first();
+        if (document == null) {
+            System.out.println("No se encontró ningún documento con ese nombre.");
+            return;
+        }
+        Object idActual = document.get("titulo");
+
+        String nuevoNombre = this.devolverString("Introduce el nuevo nombre del libro ", this.columnasExpresiones.get("nombre"), true);
+        FindIterable<Document> documentoConNuevoNombre = collection.find(new Document("titulo", nuevoNombre));
+        Document otroDocumento = documentoConNuevoNombre.first();
+
+        if (otroDocumento != null && !otroDocumento.get("titulo").equals(idActual)) {
+            System.out.println("Ya existe otro libro con el nuevo nombre proporcionado.");
+            return;
+        }
+        String nombreAutor = this.devolverString("Introduce el nombre del autor del libro ", this.columnasExpresiones.get("nombre"), true);
+        Integer paginas = this.devolverInteger("Cantidad de páginas",false);
+        String fecha = this.devolverString("Introduce la fecha de lanzamiento",this.columnasExpresiones.get("fecha"),true);
+
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("autor", nombreAutor));
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("titulo", nuevoNombre));
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("numeroDePaginas", paginas));
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("fechaDeLanzamiento", fecha));
+
+        Conexion.close();
+
+    }
+    /**
+     * Método que se encarga de borrar un libro en una lisa de libros
+     * */
+    public void borrarLibro(){
+
+        MongoDatabase baseDatos = Conexion.getDatabase();
+        MongoCollection<Document> coleccionLibros = baseDatos.getCollection("libros");
+        FindIterable<Document> documentos = coleccionLibros.find();
+        ArrayList<Document> listaDocumentos = new ArrayList<>();
+        Document primerDocumento = documentos.first();
+
+        if (primerDocumento == null) {
+            System.out.println("No hay libros");
+            return;
+        }
+
+        int index = 0;
+        for (Document cada_documento : documentos) {
+            listaDocumentos.add(cada_documento);
+            System.out.println(index++ + ": " + cada_documento.toJson());
+        }
+        Integer posicionDocumento= this.devolverInteger("Introduce el documento a borrar",true);
+        if (posicionDocumento >= 0 && posicionDocumento < listaDocumentos.size()) {
+            Document documento = listaDocumentos.get(posicionDocumento);
+
+            if (documento != null) {
+
+                if (coleccionLibros.deleteOne(documento).getDeletedCount() > 0) {
+                    System.out.println("El libro ha sido borrado con éxito.");
+                } else {
+                    System.out.println("No se encontró ningún libro con ese título.");
+                }
+
+            } else {
+                System.out.println("El documento en la posición indicada es null.");
+            }
+        } else {
+            System.out.println("Libro no encontrado o índice fuera de rango.");
+        }
+        Conexion.close();
+    }
 
     /**
      * Método que pide una string por pantalla, si hay patron comprueba que el
@@ -117,14 +213,14 @@ public class Menu {
      *
      * @param texto string a mostrar por pantalla
      */
-    public Integer devolverInteger(String texto) {
+    public Integer devolverInteger(String texto, boolean posicion) {
         Integer integerDevolver = null;
         while (integerDevolver == null) {
             System.out.println(texto);
             Scanner integerDevolverIn = new Scanner(System.in);
             try {
                 integerDevolver = integerDevolverIn.nextInt();
-                if(integerDevolver <=0){
+                if(integerDevolver <=0 && !posicion){
                     throw  new Exception("error");
                 }
 

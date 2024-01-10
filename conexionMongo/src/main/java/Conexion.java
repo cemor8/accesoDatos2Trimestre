@@ -15,6 +15,7 @@ public class Conexion {
 
             // En mongo, la base de datos se crea sin necesidad de especificarlo si el nombre no existe
             database = mongoClient.getDatabase("Biblioteca");
+            System.out.println("bien");
         }
         return database;
     }
@@ -22,6 +23,7 @@ public class Conexion {
     public static void close() {
         if (mongoClient != null) {
             mongoClient.close();
+            mongoClient = null;
         }
     }
 }
