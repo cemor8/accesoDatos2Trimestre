@@ -12,6 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Menu {
+    private ArrayList<Libro> libros = new ArrayList<>();
     Map<String, String> columnasExpresiones = new HashMap<String, String>() {
         {
             put("fecha", "^(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[012])[-/](19|20)\\d\\d$");
@@ -87,26 +88,41 @@ public class Menu {
     /**
      * Método que muestra los libros por terminal
      * */
-    public void mostrarLibros(){
+    public void recibirLibros(){
         MongoDatabase baseDatos = Conexion.getDatabase();
         MongoCollection<Document> coleccionLibros = baseDatos.getCollection("libros");
         FindIterable<Document> documentos = coleccionLibros.find();
         Document primerDocumento = documentos.first();
-
+        this.libros = new ArrayList<>();
         if (primerDocumento == null) {
-            System.out.println("No hay libros");
-            logger.info("No hay libros");
             return;
         }
         for (Document documento : documentos) {
-            System.out.println(documento.toJson());
+            String titulo = documento.getString("titulo");
+            String autor = documento.getString("autor");
+            Integer pags = Integer.valueOf(documento.getString("numeroDePaginas"));
+            String fecha = documento.getString("fechaDeLanzamiento");
+            this.libros.add(new Libro(titulo,autor,pags,fecha));
         }
         Conexion.close();
     }
+    public void mostrarLibros(){
+        this.recibirLibros();
+        if(this.libros.isEmpty()){
+            System.out.println("No hay libros");
+            return;
+        }
+        for (Libro libro : libros){
+            System.out.println(libro);
+        }
+    }
+
+
     /**
      * Método que modifica un libro
      * */
     public void modificarLibro(){
+        this.recibirLibros();
         MongoDatabase baseDatos = Conexion.getDatabase();
         MongoCollection<Document> collection = baseDatos.getCollection("libros");
         String nombreLibro = this.devolverString("Introduce el nombre del libro a modificar ", this.columnasExpresiones.get("nombre"), true);
@@ -142,7 +158,7 @@ public class Menu {
      * Método que se encarga de borrar un libro en una lisa de libros
      * */
     public void borrarLibro(){
-
+        this.recibirLibros();
         MongoDatabase baseDatos = Conexion.getDatabase();
         MongoCollection<Document> coleccionLibros = baseDatos.getCollection("libros");
         FindIterable<Document> documentos = coleccionLibros.find();
@@ -157,7 +173,7 @@ public class Menu {
         int index = 0;
         for (Document cada_documento : documentos) {
             listaDocumentos.add(cada_documento);
-            System.out.println(index++ + ": " + cada_documento.toJson());
+            System.out.println(index++ + ": " + this.libros.get(index));
         }
         Integer posicionDocumento= this.devolverInteger("Introduce el documento a borrar",true);
         if (posicionDocumento >= 0 && posicionDocumento < listaDocumentos.size()) {
