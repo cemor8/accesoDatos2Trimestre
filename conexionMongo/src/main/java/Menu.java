@@ -49,11 +49,12 @@ public class Menu {
                     opcion = null;
                     break;
                 case 3:
-                    this.modificarLibro();
+                    this.borrarLibro();
                     opcion = null;
                     break;
                 case 4:
-                    this.borrarLibro();
+                    this.modificarLibro();
+                    opcion = null;
                     break;
                 case 5:
                     System.exit(0);
@@ -100,7 +101,7 @@ public class Menu {
         for (Document documento : documentos) {
             String titulo = documento.getString("titulo");
             String autor = documento.getString("autor");
-            Integer pags = Integer.valueOf(documento.getString("numeroDePaginas"));
+            Integer pags = documento.getInteger("numeroDePaginas");
             String fecha = documento.getString("fechaDeLanzamiento");
             this.libros.add(new Libro(titulo,autor,pags,fecha));
         }
@@ -173,9 +174,10 @@ public class Menu {
         int index = 0;
         for (Document cada_documento : documentos) {
             listaDocumentos.add(cada_documento);
-            System.out.println(index++ + ": " + this.libros.get(index));
+            System.out.println((index+1) + ": " + this.libros.get(index));
         }
-        Integer posicionDocumento= this.devolverInteger("Introduce el documento a borrar",true);
+        Integer posicionDocumento= this.devolverInteger("Introduce el libro a borrar",true);
+        posicionDocumento-=1;
         if (posicionDocumento >= 0 && posicionDocumento < listaDocumentos.size()) {
             Document documento = listaDocumentos.get(posicionDocumento);
 
