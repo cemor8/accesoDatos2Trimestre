@@ -16,7 +16,9 @@ public class Menu {
     Map<String, String> columnasExpresiones = new HashMap<String, String>() {
         {
             put("fecha", "^(0[1-9]|[12][0-9]|3[01])[-/](0[1-9]|1[012])[-/](19|20)\\d\\d$");
-            put("nombre", "^.{1,30}$");
+            put("nombre", "^[\\w\\s.,!?-]{1,100}$");
+            put("paginas","^\\d{1,5}$" );
+            put("autor","^(?=.*[a-z])(?=.*[A-Z]).{4,30}$");
         }
 
     };
@@ -26,11 +28,13 @@ public class Menu {
         Integer opcion = null;
         while (opcion == null){
             Scanner opcionIN = new Scanner(System.in);
+            System.out.println("\n");
             System.out.println("1. Crear Libro");
             System.out.println("2. Mostrar Libros");
             System.out.println("3. Eliminar Libros");
             System.out.println("4. Modificar Libros");
             System.out.println("5. Salir");
+            System.out.println("\n");
             try {
                 opcion = opcionIN.nextInt();
 
@@ -72,7 +76,7 @@ public class Menu {
      * */
     public void crearLibro(){
         String nombreLibro = this.devolverString("Introduce el nombre para el libro ", this.columnasExpresiones.get("nombre"), true);
-        String nombreAutor = this.devolverString("Introduce el nombre del autor del libro ", this.columnasExpresiones.get("nombre"), true);
+        String nombreAutor = this.devolverString("Introduce el nombre del autor del libro ", this.columnasExpresiones.get("autor"), true);
         Integer paginas = this.devolverInteger("Cantidad de páginas",false);
         String fecha = this.devolverString("Introduce la fecha de lanzamiento",this.columnasExpresiones.get("fecha"),true);
         MongoDatabase baseDatos = Conexion.getDatabase();
@@ -80,8 +84,8 @@ public class Menu {
 
         Document libro = new Document("titulo", nombreLibro)
                 .append("autor", nombreAutor)
-                .append("numeroDePaginas", paginas)
-                .append("fechaDeLanzamiento", fecha);
+                .append("paginas", paginas)
+                .append("fecha", fecha);
 
         coleccionLibros.insertOne(libro);
         Conexion.close();
@@ -101,8 +105,8 @@ public class Menu {
         for (Document documento : documentos) {
             String titulo = documento.getString("titulo");
             String autor = documento.getString("autor");
-            Integer pags = documento.getInteger("numeroDePaginas");
-            String fecha = documento.getString("fechaDeLanzamiento");
+            Integer pags = documento.getInteger("paginas");
+            String fecha = documento.getString("fecha");
             this.libros.add(new Libro(titulo,autor,pags,fecha));
         }
         Conexion.close();
@@ -113,9 +117,14 @@ public class Menu {
             System.out.println("No hay libros");
             return;
         }
+        System.out.println("***************");
+        System.out.println("\n");
         for (Libro libro : libros){
             System.out.println(libro);
+            System.out.println("\n");
         }
+        System.out.println("\n");
+        System.out.println("***************");
     }
 
 
@@ -126,7 +135,7 @@ public class Menu {
         this.recibirLibros();
         MongoDatabase baseDatos = Conexion.getDatabase();
         MongoCollection<Document> collection = baseDatos.getCollection("libros");
-        String nombreLibro = this.devolverString("Introduce el nombre del libro a modificar ", this.columnasExpresiones.get("nombre"), true);
+        String nombreLibro = this.devolverString("Introduce el titulo del libro a modificar ", this.columnasExpresiones.get("nombre"), true);
         FindIterable<Document> documento = collection.find(new Document("titulo", nombreLibro));
         Document document = documento.first();
         if (document == null) {
@@ -144,13 +153,18 @@ public class Menu {
             return;
         }
         String nombreAutor = this.devolverString("Introduce el nombre del autor del libro ", this.columnasExpresiones.get("nombre"), true);
+
         Integer paginas = this.devolverInteger("Cantidad de páginas",false);
         String fecha = this.devolverString("Introduce la fecha de lanzamiento",this.columnasExpresiones.get("fecha"),true);
 
+
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("paginas", paginas));
+        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("fecha", fecha));
         collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("autor", nombreAutor));
         collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("titulo", nuevoNombre));
-        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("numeroDePaginas", paginas));
-        collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("fechaDeLanzamiento", fecha));
+
+
+
 
         Conexion.close();
 
@@ -175,6 +189,8 @@ public class Menu {
         for (Document cada_documento : documentos) {
             listaDocumentos.add(cada_documento);
             System.out.println((index+1) + ": " + this.libros.get(index));
+            System.out.println("\n");
+            index+=1;
         }
         Integer posicionDocumento= this.devolverInteger("Introduce el libro a borrar",true);
         posicionDocumento-=1;

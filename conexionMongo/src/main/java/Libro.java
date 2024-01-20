@@ -44,4 +44,12 @@ public class Libro implements Serializable{
     public void setFecha(String fecha) {
         this.fecha = fecha;
     }
+
+    @Override
+    public String toString() {
+        return " Titulo: " + titulo +"\n"+
+                " Autor: " + autor +"\n"+
+                " Páginas: " + paginas +"\n"+
+                " Fecha: " + fecha;
+    }
 }
