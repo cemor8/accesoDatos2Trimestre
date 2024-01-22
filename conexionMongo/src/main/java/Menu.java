@@ -23,6 +23,9 @@ public class Menu {
 
     };
     private static final Logger logger = LoggerFactory.getLogger(Conexion.class);
+    /**
+     * Método que muestra el menú del programa por terminal
+     * */
     public void mostrarMenu(){
 
         Integer opcion = null;
@@ -72,7 +75,8 @@ public class Menu {
     }
 
     /**
-     * Método que crea un libro en la base de datos, pide los datos por terminal.
+     * Método que crea un libro en la base de datos, pide los datos por terminal y luego
+     * los introduce como un documento en la coleccion de libros.
      * */
     public void crearLibro(){
         String nombreLibro = this.devolverString("Introduce el nombre para el libro ", this.columnasExpresiones.get("nombre"), true);
@@ -91,7 +95,8 @@ public class Menu {
         Conexion.close();
     }
     /**
-     * Método que muestra los libros por terminal
+     * Método que recibe los libros de la base de datos y crea objetos Libros
+     * con estos documentos
      * */
     public void recibirLibros(){
         MongoDatabase baseDatos = Conexion.getDatabase();
@@ -111,6 +116,9 @@ public class Menu {
         }
         Conexion.close();
     }
+    /**
+     * Método que muestra los libros por terminal
+     * */
     public void mostrarLibros(){
         this.recibirLibros();
         if(this.libros.isEmpty()){
@@ -129,7 +137,10 @@ public class Menu {
 
 
     /**
-     * Método que modifica un libro
+     * Método que modifica un libro, se conecta a la base de datos y obtiene la coleccion de libros,
+     * luego busca un libro con el titulo que se ha pedido por terminal, si no encuentra ninguno lo indica,
+     * pide un nuevo titulo para el libro, si ese titulo ya existe, lo indica, si no existe y es válido, pide
+     * los demas datos para modificar el libro.
      * */
     public void modificarLibro(){
         this.recibirLibros();
@@ -162,15 +173,13 @@ public class Menu {
         collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("fecha", fecha));
         collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("autor", nombreAutor));
         collection.updateOne(Filters.eq("titulo", nombreLibro),Updates.set("titulo", nuevoNombre));
-
-
-
-
         Conexion.close();
 
     }
     /**
-     * Método que se encarga de borrar un libro en una lisa de libros
+     * Método que se encarga de borrar un libro en una lisa de libros, muestra todos los libros por terminal
+     * seguidos de un numero, pide el numero correspondiente al libro por terminal para ser eliminado, cuando es introducido
+     * y este es válido, lo elimina.
      * */
     public void borrarLibro(){
         this.recibirLibros();
