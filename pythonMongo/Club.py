@@ -1,15 +1,18 @@
 class Club:
-    def __init__(self, nombre, cartas):
-        self._nombre_club = nombre
+    def __init__(self, nombre_club, cartas):
+        self._nombre_club = nombre_club
         self._cartas = cartas
 
 
     def mostrar_info(self):
         print(f"Nombre: {self._nombre_club}")
         print("Cartas:")
-        for carta in self._cartas.items():
-            carta.mostrar_info
-            print("---")
+        print("\t", end="")
+        if not self._cartas:
+            print("\tVacío")
+        for carta in self._cartas:
+            carta.mostrar_info()
+            print("---------------------------------")
             
     def to_dict(self):
         return {
