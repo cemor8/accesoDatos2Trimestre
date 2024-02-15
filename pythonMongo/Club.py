@@ -5,6 +5,7 @@ class Club:
 
 
     def mostrar_info(self):
+        print("*************************")
         print(f"Nombre: {self._nombre_club}")
         print("Cartas:")
         print("\t", end="")
@@ -12,10 +13,13 @@ class Club:
             print("\tVacío")
         for carta in self._cartas:
             carta.mostrar_info()
-            print("---------------------------------")
+            
             
     def to_dict(self):
         return {
             "nombre_club": self._nombre_club,
             "cartas": [carta.to_dict() for carta in self._cartas]
         }
+    @property
+    def cartas(self):
+        return self._cartas

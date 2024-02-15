@@ -2,6 +2,7 @@ from pymongo import MongoClient
 from Carta import Carta
 from Club import Club
 import sys
+import re
 
 cliente = MongoClient("mongodb+srv://cemor8:12q12q12@cluster0.3yldjuk.mongodb.net/")
 
@@ -17,6 +18,7 @@ expresionesRegulares = {
     "dorsal": "^\\d{1,2}$",
     "posicion": "^(DEL|MED|DEF|POR)$",
     "habilidades": "^([0-9]|[1-9][0-9]|100)$"
+    
 }
 
 libros = []
@@ -30,10 +32,11 @@ def menu():
         5. Modificar carta
         6. Crear carta
         7. Crear club
-        8. Ver clubes
-        9. Eliminar club y cartas
-        10. Modificar club
-        11. Salir
+        8. Ver un club
+        9. Mostrar Clubes
+        10. Eliminar club y cartas
+        11. Modificar club
+        12. Salir
 """)
     try:
         numero = int(input("Selecciona una opcion: \n"))
@@ -60,10 +63,12 @@ def menu():
     elif numero == 8:
         mostrarClub()
     elif numero == 9:
-        eliminarClub()
+        mostrarClubes()
     elif numero == 10:
-        modificarClub()
+        eliminarClub()
     elif numero == 11:
+        modificarClub()
+    elif numero == 12:
         sys.exit()
         
     menu()
@@ -92,16 +97,38 @@ def mostrarCartas():
 def crearCarta():
     nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador: ")
     calidad = devolverString("calidad","Introduce una calidad de la carta: ")
-    club = devolverString("autor","Introduce el club del jugador: ")
+    print(calidad)
+    club = devolverString("club","Introduce el club del jugador: ")
     
     documento = coleccion_clubes.find_one({"nombre_club" : club})
     if not documento:
         print("No existe un club con ese nombre, crealo")
         return
     
+    cartasDoc = []
+    for carta in documento["cartas"]:
+        cartaCrear = Carta(
+            nombre_jugador=carta['nombre_jugador'],
+            calidad=carta['calidad'],
+            club=carta['club'],
+            dorsal=carta['dorsal'],
+            posicion=carta['posicion'],
+            habilidades=carta['habilidades']
+        )
+        cartasDoc.append(cartaCrear)
+        
+    club = Club(
+            nombre_club=documento["nombre_club"],
+            cartas=cartasDoc
+        )    
     dorsal = devolverString("dorsal","Introduce el dorsal del jugador: ")
-    posicion = devolverString("posicion","Introduce la posicion del jugador: ")
     
+    for carta in club.cartas:
+        if carta.dorsal == dorsal:
+            print("Dorsal Repetido")
+            return
+        
+    posicion = devolverString("posicion","Introduce la posicion del jugador: ")
     habilidades = {
         "fisico" : devolverString("habilidades","Introduce el físico del jugador: "),
         "defensa" : devolverString("habilidades","Introduce la defensa del jugador: "),
@@ -125,7 +152,7 @@ def crearCarta():
         coleccion_clubes.update_one({"nombre_club":club},{"$push":{"cartas" : carta.to_dict()}})
         print("Carta creada con éxito")
     else:
-        print("Ya hay una carta de ese jugador con esa calidad, modificala o eliminala")
+        print("Carta inválida, comprueba repetidos o errores")
 
 
 def mostrarCartaPropiedad(propiedad):
@@ -214,7 +241,7 @@ def modificarCarta():
         
 
 def crearClub():
-    nombre_club = devolverString("nombre_club","Introduce el nombre del jugador: ")
+    nombre_club = devolverString("club","Introduce el nombre del club: ")
 
     documento = coleccion_clubes.find_one({"nombre_club":nombre_club})
     if not documento :
@@ -228,7 +255,7 @@ def crearClub():
         print("Club existente")
 
 def mostrarClub():
-    nombre_club = devolverString("nombre_club","Introduce el nombre del club: ")
+    nombre_club = devolverString("club","Introduce el nombre del club: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     clubes = []
     for doc in documentos:
@@ -255,7 +282,7 @@ def mostrarClub():
             club.mostrar_info()
             
 def eliminarClub():
-    nombre_club = devolverString("nombre_club","Introduce el nombre del club a borrar: ")
+    nombre_club = devolverString("club","Introduce el nombre del club a borrar: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     if not documentos:
         print("Club no encontrado")
@@ -265,22 +292,50 @@ def eliminarClub():
         coleccion_cartas.delete_many({"club": nombre_club})
         
 def modificarClub():
-    nombre_club = devolverString("nombre_club","Introduce el nombre del club a modificar: ")
+    nombre_club = devolverString("club","Introduce el nombre del club a modificar: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     if not documentos:
         print("Club no encontrado")
     else:
-        nuevo_nombre = devolverString("nombre_club","Introduce el nombre del club a modificar: ")
+        nuevo_nombre = devolverString("club","Introduce el nombre del club a modificar: ")
         coleccion_cartas.update_many({"club":nombre_club},{"$set":{"club":nuevo_nombre}})
         coleccion_clubes.update_one({"nombre_club":nombre_club},{"$set":{"nombre_club":nuevo_nombre}})
 
+def mostrarClubes():
+    documentos = coleccion_clubes.find()
+    clubes = []
+    for doc in documentos:
+        cartasDoc = []
+        for carta in doc["cartas"]:
+            cartaCrear = Carta(
+                nombre_jugador=carta['nombre_jugador'],
+                calidad=carta['calidad'],
+                club=carta['club'],
+                dorsal=carta['dorsal'],
+                posicion=carta['posicion'],
+                habilidades=carta['habilidades']
+            )
+            cartasDoc.append(cartaCrear)
+        club = Club(
+            nombre_club = doc["nombre_club"],
+            cartas = cartasDoc
+        )
+        clubes.append(club)
+    if not clubes:
+        print("No hay clubes")
+    else:
+        for club in clubes:
+            club.mostrar_info()
 
 def devolverString(campo,textoMostrar):
     try:
         valor= str(input(textoMostrar))
-        return valor
+        if re.match(expresionesRegulares.get(campo),valor):
+            return valor
+        else:
+            raise ValueError
     except ValueError:
-        print("Error al introducir un valor")
+        print("Contenido inválido")
         devolverString(campo,textoMostrar)
 
 def devolverInt(textoMostrar):

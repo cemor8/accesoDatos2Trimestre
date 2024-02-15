@@ -58,6 +58,7 @@ class Carta:
         self._habilidades = valor
 
     def mostrar_info(self):
+        print("\n")
         print(f"Jugador: {self._nombre_jugador}")
         print(f"Calidad: {self._calidad}")
         print(f"Club: {self._club}")
@@ -66,6 +67,7 @@ class Carta:
         print("Habilidades:")
         for habilidad, valor in self._habilidades.items():
             print(f"  {habilidad}: {valor}")
+        print("-------------\n")
             
     def to_dict(self):
         return {
