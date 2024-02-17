@@ -124,7 +124,7 @@ def crearCarta():
     dorsal = devolverString("dorsal","Introduce el dorsal del jugador: ")
     
     for carta in club.cartas:
-        if carta.dorsal == dorsal:
+        if carta.dorsal == dorsal and carta.nombre_jugador != nombre_jugador:
             print("Dorsal Repetido")
             return
         
