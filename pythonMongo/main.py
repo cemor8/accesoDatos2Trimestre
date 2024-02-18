@@ -75,6 +75,10 @@ def menu():
 
 
 def mostrarCartas():
+    """
+    Método que muestra todas las cartas de la
+    base de datos
+    """
     documentos = coleccion_cartas.find()
     cartas = []
     for doc in documentos:
@@ -95,6 +99,11 @@ def mostrarCartas():
 
 
 def crearCarta():
+    """
+    Método que se encarga de crear una nueva carta, no se puede crear una carta
+    si ya hay una con el mismo nombre y calidad o si hay una que tenga el nombre diferente
+    y el mismo dorsal
+    """
     nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador: ")
     calidad = devolverString("calidad","Introduce una calidad de la carta: ")
     club = devolverString("club","Introduce el club del jugador: ")
@@ -155,6 +164,10 @@ def crearCarta():
 
 
 def mostrarCartaPropiedad(propiedad):
+    """
+    Método que se encarga de mostrar las cartas de un jugador
+    o de un club
+    """
     valor = devolverString(propiedad,"Introduce el valor: ")
     documentos = coleccion_cartas.find({propiedad:valor})
     cartas = []
@@ -175,6 +188,10 @@ def mostrarCartaPropiedad(propiedad):
             carta.mostrar_info()
 
 def eliminarCarta():
+    """
+    Método que se encarga de eliminar una carta
+    de la coleccion de cartas y del club
+    """
     nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador a borrar: ")
     calidad = devolverString("calidad","Introduce su calidad: ")
     club = devolverString("club","Introduce su club: ")
@@ -186,6 +203,10 @@ def eliminarCarta():
         coleccion_clubes.update_one({"nombre_club": club},{"$pull": {"cartas": {"nombre_jugador": nombre_jugador, "calidad": calidad}}})
 
 def modificarCarta():
+    """
+    Método que se encarga de modificar una carta,
+    actualiza el valor en la lista de cartas del club
+    """
     nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador a modificar: ")
     calidad = devolverString("calidad","Introduce su calidad: ")
     club = devolverString("club","Introduce su club: ")
@@ -264,6 +285,9 @@ def modificarCarta():
         
 
 def crearClub():
+    """
+    Método que se encarga de crear un club
+    """
     nombre_club = devolverString("club","Introduce el nombre del club: ")
 
     documento = coleccion_clubes.find_one({"nombre_club":nombre_club})
@@ -278,6 +302,10 @@ def crearClub():
         print("Club existente")
 
 def mostrarClub():
+    """
+    Método que se encarga de mostrar todos los
+    datos de un club
+    """
     nombre_club = devolverString("club","Introduce el nombre del club: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     clubes = []
@@ -305,6 +333,9 @@ def mostrarClub():
             club.mostrar_info()
             
 def eliminarClub():
+    """
+    Método que se encarga de eliminar un club
+    """
     nombre_club = devolverString("club","Introduce el nombre del club a borrar: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     if not documentos:
@@ -315,6 +346,10 @@ def eliminarClub():
         coleccion_cartas.delete_many({"club": nombre_club})
         
 def modificarClub():
+    """
+    Método que se encarga de modificar los datos de un club, solo permite
+    cambiar el nombre del club
+    """
     nombre_club = devolverString("club","Introduce el nombre del club a modificar: ")
     documentos = coleccion_clubes.find({"nombre_club":nombre_club})
     if not documentos:
@@ -325,6 +360,10 @@ def modificarClub():
         coleccion_clubes.update_one({"nombre_club":nombre_club},{"$set":{"nombre_club":nuevo_nombre}})
 
 def mostrarClubes():
+    """
+    Método que se encarga de mostrar los datos de 
+    todos los clubes
+    """
     documentos = coleccion_clubes.find()
     clubes = []
     for doc in documentos:
