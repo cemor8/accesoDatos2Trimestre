@@ -40,7 +40,7 @@ def menu():
 """)
     try:
         numero = int(input("Selecciona una opcion: \n"))
-        if numero<1 or numero > 11:
+        if numero<1 or numero > 12:
             menu()
     except ValueError:
         print("error al introducir numero")
@@ -97,7 +97,6 @@ def mostrarCartas():
 def crearCarta():
     nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador: ")
     calidad = devolverString("calidad","Introduce una calidad de la carta: ")
-    print(calidad)
     club = devolverString("club","Introduce el club del jugador: ")
     
     documento = coleccion_clubes.find_one({"nombre_club" : club})
@@ -117,13 +116,13 @@ def crearCarta():
         )
         cartasDoc.append(cartaCrear)
         
-    club = Club(
+    clubC = Club(
             nombre_club=documento["nombre_club"],
             cartas=cartasDoc
         )    
     dorsal = devolverString("dorsal","Introduce el dorsal del jugador: ")
     
-    for carta in club.cartas:
+    for carta in clubC.cartas:
         if carta.dorsal == dorsal and carta.nombre_jugador != nombre_jugador:
             print("Dorsal Repetido")
             return
@@ -156,7 +155,7 @@ def crearCarta():
 
 
 def mostrarCartaPropiedad(propiedad):
-    valor = devolverString(propiedad,"Introduce el valor")
+    valor = devolverString(propiedad,"Introduce el valor: ")
     documentos = coleccion_cartas.find({propiedad:valor})
     cartas = []
     for doc in documentos:
@@ -187,7 +186,7 @@ def eliminarCarta():
         coleccion_clubes.update_one({"nombre_club": club},{"$pull": {"cartas": {"nombre_jugador": nombre_jugador, "calidad": calidad}}})
 
 def modificarCarta():
-    nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador a borrar: ")
+    nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador a modificar: ")
     calidad = devolverString("calidad","Introduce su calidad: ")
     club = devolverString("club","Introduce su club: ")
     documento = coleccion_cartas.find_one({"nombre_jugador": nombre_jugador, "calidad": calidad, "club": club})
@@ -197,14 +196,38 @@ def modificarCarta():
     else:
         nuevo_nombre_jugador = devolverString("nombre_jugador","Introduce el nombre del jugador: ")
         nueva_calidad = devolverString("calidad","Introduce una calidad de la carta: ")
-        nuevo_club = devolverString("autor","Introduce el club del jugador: ")
+        nuevo_club = devolverString("club","Introduce el club del jugador: ")
     
-        documento = coleccion_clubes.find_one({"club" : club})
+        documento = coleccion_clubes.find_one({"nombre_club" : nuevo_club})
         if documento is None:
-            print("Carta no encontrada")
+            print("Club no encontrado")
             return
     
         dorsal = devolverString("dorsal","Introduce el dorsal del jugador: ")
+
+
+        cartasDoc = []
+        for carta in documento["cartas"]:
+            cartaCrear = Carta(
+                nombre_jugador=carta['nombre_jugador'],
+                calidad=carta['calidad'],
+                club=carta['club'],
+                dorsal=carta['dorsal'],
+                posicion=carta['posicion'],
+                habilidades=carta['habilidades']
+            )
+            cartasDoc.append(cartaCrear)
+        
+        clubC = Club(
+            nombre_club=documento["nombre_club"],
+            cartas=cartasDoc
+        )      
+       
+        for carta in clubC.cartas:
+            if (carta.dorsal == dorsal and carta.nombre_jugador != nuevo_nombre_jugador) or carta.calidad == nueva_calidad and carta.nombre_jugador == nuevo_nombre_jugador:
+                print("Duplicado o contenido inválido")
+                return
+            
         posicion = devolverString("posicion","Introduce la posicion del jugador: ")
     
         habilidades = {
