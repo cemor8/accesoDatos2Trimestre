@@ -351,13 +351,14 @@ def modificarClub():
     cambiar el nombre del club
     """
     nombre_club = devolverString("club","Introduce el nombre del club a modificar: ")
-    documentos = coleccion_clubes.find({"nombre_club":nombre_club})
-    if not documentos:
+    documento = coleccion_clubes.find_one({"nombre_club":nombre_club})
+    if not documento:
         print("Club no encontrado")
     else:
-        nuevo_nombre = devolverString("club","Introduce el nombre del club a modificar: ")
+        nuevo_nombre = devolverString("club","Introduce el nuevo nombre del club: ")
         coleccion_cartas.update_many({"club":nombre_club},{"$set":{"club":nuevo_nombre}})
         coleccion_clubes.update_one({"nombre_club":nombre_club},{"$set":{"nombre_club":nuevo_nombre}})
+        coleccion_clubes.update_one({"nombre_club":nuevo_nombre}, {"$set": {"cartas.$[].club": nuevo_nombre}})
 
 def mostrarClubes():
     """
