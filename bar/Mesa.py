@@ -1,9 +1,10 @@
 class Mesa:
-    def __init__(self, nombre_mesa, estado, ubicacion, capacidad):
-        self.nombre_mesa = nombre_mesa
-        self.estado = estado
-        self.ubicacion = ubicacion
-        self.capacidad = capacidad
+    def __init__(self, nombre_mesa, ocupada, ubicacion, capacidad,sitios):
+        self._nombre_mesa = nombre_mesa
+        self._ocupada = ocupada
+        self._ubicacion = ubicacion
+        self._capacidad = capacidad
+        self._sitios = sitios
 
     @property
     def nombre_mesa(self):
@@ -14,15 +15,15 @@ class Mesa:
         self._nombre_mesa = valor
 
     @property
-    def estado(self):
-        return self._estado
+    def ocupada(self):
+        return self._ocupada
 
-    @estado.setter
-    def estado(self, valor):
+    @ocupada.setter
+    def ocupada(self, valor):
         if isinstance(valor, bool):
-            self._estado = valor
+            self._ocupada = valor
         else:
-            raise ValueError("El estado debe ser un valor booleano.")
+            raise ValueError("El ocupada debe ser un valor booleano.")
 
     @property
     def ubicacion(self):
@@ -45,10 +46,15 @@ class Mesa:
             self._capacidad = valor
         else:
             raise ValueError("La capacidad debe ser un número entero positivo.")
+    @property
+    def sitios(self):
+        return self._sitios
+    @sitios.setter
+    def capacidadActual(self, valor):
+        self._sitios = valor
 
     def __str__(self):
-        estado_str = "Ocupada" if self.estado else "Libre"
         return (f"Mesa: {self.nombre_mesa}, "
-                f"Estado: {estado_str}, "
+                f"Ocupada: {self.ocupada}, "
                 f"Ubicación: {self.ubicacion}, "
                 f"Capacidad: {self.capacidad} personas")
