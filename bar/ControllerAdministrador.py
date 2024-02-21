@@ -134,9 +134,10 @@ class ControllerAdministrador:
             mesa = next((mesa for mesa in listaMesas if mesa.ubicacion == lugar),None)
             sitiosLibres = []
             #metodo que devuelva los sitios libros
+            print(mesa.sitios)
             for sitio in mesa.sitios:
                 if sitio.ocupado == False:
-                    sitios.append(sitio)
+                    sitiosLibres.append(sitio)
             
             if mesa is None or not sitiosLibres or len(sitiosLibres) < capacidadDeseada or mesa.ocupada == True:
                 print("No hay espacio suficiente en la barra")
