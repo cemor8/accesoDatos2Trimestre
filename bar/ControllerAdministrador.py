@@ -35,9 +35,10 @@ class ControllerAdministrador:
         print("""
             1. Mostrar Mesas
             2. Reservar Mesa
-            3. Ver Pedidos
-            4. Cambiar Estado Pedido
-            5. Ver Facturas
+            3. Liberar Mesa
+            4. Ver Pedidos
+            5. Cambiar Estado Pedido
+            6. Ver Facturas
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -65,7 +66,7 @@ class ControllerAdministrador:
                 sitios = []
                 for sitio in documento["sitios"]:
                     sitio = Sitio(
-                        nombre=sitio["nombre"],
+                        nombre= str(sitio["nombre"]),
                         ocupado=sitio["ocupado"]
                     )
                     sitios.append(sitio)
@@ -88,9 +89,13 @@ class ControllerAdministrador:
         se descarta debido a que no hay espacio, permite reservar una mesa de una capacidad mayor,
         selecciona la mas cercana a la capacidad establecida 
         """
+        
         coleccion_mesas = self._baseDatos["mesas"]
         
         documentosMesas = coleccion_mesas.find({"ocupada":False})
+        
+        #Buscar mesas en la base de datos
+        
         listaMesas = []
         for documento in documentosMesas:
             sitios = None
@@ -111,9 +116,11 @@ class ControllerAdministrador:
                 sitios=sitios
             )
             listaMesas.append(mesa)
+            
         if not listaMesas:
             print("No hay mesas disponibles")
             return
+        
         capacidadDeseada = 0
         try:
             capacidadDeseada = int(input("Introduce el número de comensales de la reserva: \n"))
@@ -130,32 +137,49 @@ class ControllerAdministrador:
             print("Error al introducir ubicación")
             return
         
+        
+        #se comprueba que haya capacidad suficiente actualmente en el restaurante
+        
+        capacidadActual = 0
+        for mesa in listaMesas:
+            if mesa.ocupada == False and mesa.ubicacion == lugar:
+                capacidadActual+= mesa.capacidad
+        
+        if capacidadActual < capacidadDeseada:
+            print("No hay capacidad en el restaurante")
+            return
+        
+        
+        
+        #Como la barra es diferente porque cada sitio es individual, se comprueba la barra
+        
         if lugar == "barra":
+            #se busca la instancia de la barra en la lista de mesas y los sitios libres de esta
             mesa = next((mesa for mesa in listaMesas if mesa.ubicacion == lugar),None)
-            sitiosLibres = []
-            #metodo que devuelva los sitios libros
-            print(mesa.sitios)
-            for sitio in mesa.sitios:
-                if sitio.ocupado == False:
-                    sitiosLibres.append(sitio)
-            
+            sitiosLibres = filter(lambda sitio: sitio.ocupado == False,mesa.sitios)
+            sitiosLibres = list(sitiosLibres)
+            # si no hay sitios libres o hay menos que la capacidad deseada, no hay sitio en la barra
             if mesa is None or not sitiosLibres or len(sitiosLibres) < capacidadDeseada or mesa.ocupada == True:
                 print("No hay espacio suficiente en la barra")
                 return
-            for sitio in sitiosLibres:
-                sitio.ocupado = True
-                coleccion_mesas.update_many({"nombre_mesa" : mesa.nombre_mesa},{"$set": {"sitios.$[sitio].ocupado": True}},array_filters=[{"sitio.nombre":sitio.nombre}])
-            
+            # se recorre la lista de sitios libres tantas veces como clientes haya
+            for i,sitio in enumerate(sitiosLibres):
+                if i < capacidadDeseada:
+                    sitio.ocupado = True
+                    coleccion_mesas.update_many({"nombre_mesa" : mesa.nombre_mesa},{"$set": {"sitios.$[sitio].ocupado": True}},array_filters=[{"sitio.nombre":sitio.nombre}])
+                else:
+                    break
+            # si despues de reservar los sitios, no quedan sitios libres, se ocupa la barra
             if  len(sitiosLibres) - capacidadDeseada == 0:
                 mesa.ocupada = True
                 coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
-                coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"capacidadActual" : 0}})
                 return
             
-            coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"capacidadActual" : mesa.capacidadActual}})
-            print(capacidadDeseada + "espacion reservados en la barra")
+            print(capacidadDeseada , "espacios reservados en la barra")
             return
-
+        
+        
+        # si hay una mesa de esa capacidad se reserva
                       
         for mesa in listaMesas:
             if mesa.capacidad == capacidadDeseada and mesa.ubicacion == lugar:
@@ -164,11 +188,13 @@ class ControllerAdministrador:
                 print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                 return
         
+        #se buscan las posibles combinaciones de mesas para cumplir la capacidad deseada
         
-           
         mesasDisponibles = self.buscarCombinacionMesa(capacidadDeseada,0,[],listaMesas,lugar)
-        
+        print(mesasDisponibles)
+        #si no hay
         if mesasDisponibles == None:
+            #se intenta meter a la gente en una mesa mas grande
             mesasOrdenadas = listaMesas.copy()
             mesasOrdenadas.sort(key = lambda mesa: mesa.capacidad, reverse=True)
             for mesa in mesasOrdenadas:
@@ -177,14 +203,20 @@ class ControllerAdministrador:
                     coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
                     print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                     return
-                
-                
-            print("No se ha encontrado una mesa que se adecúe a la capacidad")    
-            return
+            # si no hay ninguna mesa grande en la que puedan entrar todos, se buscan combinaciones de mesas
+            # aumentando la cantidad de 1 en 1 para intentar desperdiciar el menor numero de asientos posibles
+            i = 1
+            mesasDisponibles = self.buscarCombinacionMesa(capacidadDeseada + i,0,[],listaMesas,lugar)     
+            while mesasDisponibles == None and i < capacidadActual:
+                   mesasDisponibles = self.buscarCombinacionMesa(capacidadDeseada + i,0,[],listaMesas,lugar)
+                   i+=1     
         
         texto = ""
         
+        print(mesasDisponibles)
+        # se reservan las mesas disponibles
         for mesa in mesasDisponibles:
+            print(mesa.nombre_mesa)
             texto += mesa.nombre_mesa+"\n"
             mesa.ocupada = True
             coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
@@ -192,17 +224,33 @@ class ControllerAdministrador:
         print("Se han reservado correctamente las mesas: "+texto)
         
     def buscarCombinacionMesa(self,capacidad,posicion,listaMesas,mesas,lugar):
+        """
+        Método que se encarga de buscar posibles combinaciones de mesas para agrupar y cumplir
+        la capacidad establecida en el parámetro capacidad.
+        
+        Parámetros: 
+        capacidad (int) : capacidad que debe cumplir la combinacion, se va restando hasta llegar a 0
+        posicion (int) : posicion por la que empezar a buscar elementos de la lista para agrupar
+        listaMesas([Mesa]) : lista de mesas que están en la combinacion actual
+        mesas([Mesa]) : lista de mesas disponibles sobre la que iterar
+        lugar(str) : ubicacion de donde se quiere sentar el cliente dentro del bar
+        
+        """
+        
         if capacidad == 0:
             return listaMesas.copy()
         
         for i in range(posicion,len(mesas)):
             if capacidad - mesas[i].capacidad >= 0 and mesas[i].ubicacion == lugar:
+                if mesas[i] in listaMesas:
+                    continue
                 listaMesas.append(mesas[i])
-                listaCombinaciones = self.buscarCombinacionMesa(self,capacidad - mesas[i].capacidad,posicion + 1,listaMesas,mesas,lugar)
+                listaCombinaciones = self.buscarCombinacionMesa(capacidad - mesas[i].capacidad,posicion + 1,listaMesas,mesas,lugar)
                 if listaCombinaciones:
                     return listaCombinaciones
                 listaMesas.pop()
         return None
+    
     def devolverString(self,campo,textoMostrar):
         try:
             valor= str(input(textoMostrar))
