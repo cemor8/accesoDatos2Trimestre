@@ -16,3 +16,5 @@ class Sitio:
     @nombre.setter
     def nombre(self,valor):
         self._nombre = valor
+    def to_dict(self):
+        return {"nombre" : self._nombre , "ocupado" : self._ocupado}

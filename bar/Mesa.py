@@ -1,3 +1,4 @@
+from Sitio import Sitio
 class Mesa:
     def __init__(self, nombre_mesa, ocupada, ubicacion, capacidad,sitios):
         self._nombre_mesa = nombre_mesa
@@ -52,6 +53,9 @@ class Mesa:
     @sitios.setter
     def capacidadActual(self, valor):
         self._sitios = valor
+        
+    def to_dict(self):
+        return {"nombre_mesa" : self._nombre_mesa, "ocupada" : self._capacidad, "ubicacion" : self._ubicacion, "capacidad" : self._capacidad, "sitios" : [sitio.to_dict() for sitio in self._sitios] }
 
     def __str__(self):
         return (f"Mesa: {self.nombre_mesa}, "

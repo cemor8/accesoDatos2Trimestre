@@ -91,6 +91,7 @@ class ControllerAdministrador:
         """
         
         coleccion_mesas = self._baseDatos["mesas"]
+        coleccion_reservas = self._baseDatos["reservas"]
         
         documentosMesas = coleccion_mesas.find({"ocupada":False})
         
@@ -137,6 +138,13 @@ class ControllerAdministrador:
             print("Error al introducir ubicación")
             return
         
+        dni = ""
+        try:
+            dni = self.devolverString("dni","Introduce el dni de la reserva: ")
+        except ValueError:
+            print("Error al introducir ubicación")
+            return
+        
         
         #se comprueba que haya capacidad suficiente actualmente en el restaurante
         
@@ -163,11 +171,14 @@ class ControllerAdministrador:
                 print("No hay espacio suficiente en la barra")
                 return
             # se recorre la lista de sitios libres tantas veces como clientes haya
+            listaSitios = []
             for i,sitio in enumerate(sitiosLibres):
                 if i < capacidadDeseada:
                     sitio.ocupado = True
                     coleccion_mesas.update_many({"nombre_mesa" : mesa.nombre_mesa},{"$set": {"sitios.$[sitio].ocupado": True}},array_filters=[{"sitio.nombre":sitio.nombre}])
+                    listaSitios.append(sitio)
                 else:
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [sitio.to_dict() for sitio in listaSitios]})   
                     break
             # si despues de reservar los sitios, no quedan sitios libres, se ocupa la barra
             if  len(sitiosLibres) - capacidadDeseada == 0:
@@ -185,6 +196,7 @@ class ControllerAdministrador:
             if mesa.capacidad == capacidadDeseada and mesa.ubicacion == lugar:
                 mesa.ocupada = True
                 coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
+                coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa]})   
                 print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                 return
         
@@ -201,6 +213,7 @@ class ControllerAdministrador:
                 if mesa.capacidad > capacidadDeseada and mesa.ubicacion == lugar:
                     mesa.ocupada = True
                     coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa]})   
                     print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                     return
             # si no hay ninguna mesa grande en la que puedan entrar todos, se buscan combinaciones de mesas
@@ -220,6 +233,8 @@ class ControllerAdministrador:
             texto += mesa.nombre_mesa+"\n"
             mesa.ocupada = True
             coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
+            
+        coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict() for mesa in mesasDisponibles]})    
             
         print("Se han reservado correctamente las mesas: "+texto)
         
