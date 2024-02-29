@@ -61,16 +61,15 @@ class ControllerAdministrador:
         documentosMesas = coleccion_mesas.find()
         listaMesas = []
         for documento in documentosMesas:
-            sitios = None
+            sitios = []
             if documento.get("sitios") is not None:
-                sitios = []
                 for sitio in documento["sitios"]:
                     sitio = Sitio(
-                        nombre= str(sitio["nombre"]),
-                        ocupado=sitio["ocupado"]
+                    nombre=sitio["nombre"],
+                    ocupado=sitio["ocupado"]
                     )
                     sitios.append(sitio)
-                
+    
             mesa = Mesa(
                 nombre_mesa=documento["nombre_mesa"],
                 ocupada= documento["ocupada"],
@@ -99,16 +98,15 @@ class ControllerAdministrador:
         
         listaMesas = []
         for documento in documentosMesas:
-            sitios = None
+            sitios = []
             if documento.get("sitios") is not None:
-                sitios = []
                 for sitio in documento["sitios"]:
                     sitio = Sitio(
-                        nombre=sitio["nombre"],
-                        ocupado=sitio["ocupado"]
+                    nombre=sitio["nombre"],
+                    ocupado=sitio["ocupado"]
                     )
                     sitios.append(sitio)
-                
+    
             mesa = Mesa(
                 nombre_mesa=documento["nombre_mesa"],
                 ocupada= documento["ocupada"],
@@ -153,6 +151,8 @@ class ControllerAdministrador:
             if mesa.ocupada == False and mesa.ubicacion == lugar:
                 capacidadActual+= mesa.capacidad
         
+        print(capacidadActual)
+        print(listaMesas)
         if capacidadActual < capacidadDeseada:
             print("No hay capacidad en el restaurante")
             return
@@ -196,7 +196,7 @@ class ControllerAdministrador:
             if mesa.capacidad == capacidadDeseada and mesa.ubicacion == lugar:
                 mesa.ocupada = True
                 coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
-                coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa]})   
+                coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()]})   
                 print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                 return
         
@@ -213,7 +213,7 @@ class ControllerAdministrador:
                 if mesa.capacidad > capacidadDeseada and mesa.ubicacion == lugar:
                     mesa.ocupada = True
                     coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
-                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa]})   
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()]})   
                     print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                     return
             # si no hay ninguna mesa grande en la que puedan entrar todos, se buscan combinaciones de mesas
@@ -265,6 +265,15 @@ class ControllerAdministrador:
                     return listaCombinaciones
                 listaMesas.pop()
         return None
+    
+    def verReservas(self):
+        """
+        Método que muestra las reservas actuales en el restaurante
+        """
+        coleccion_reservas = self._baseDatos["reservas"]
+        listaReservas = coleccion_reservas.find()
+        for reserva in listaReservas:
+            print(reserva)
     
     def devolverString(self,campo,textoMostrar):
         try:
