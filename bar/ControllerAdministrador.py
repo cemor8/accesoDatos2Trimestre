@@ -1,5 +1,6 @@
 from Mesa import Mesa
 from Sitio import Sitio
+from datetime import datetime, timedelta
 
 class ControllerAdministrador:
     def __init__(self, administrador, baseDatos):
@@ -39,6 +40,7 @@ class ControllerAdministrador:
             4. Ver Pedidos
             5. Cambiar Estado Pedido
             6. Ver Facturas
+            7. Comprobar Reservas
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -52,6 +54,8 @@ class ControllerAdministrador:
             self.mostrarMesas()
         elif numero == 2:
             self.reservarMesa()
+        elif numero == 7:
+            self.comprobarReservas()
         self.mostrarMenu()
     def mostrarMesas(self):
         """
@@ -178,7 +182,7 @@ class ControllerAdministrador:
                     coleccion_mesas.update_many({"nombre_mesa" : mesa.nombre_mesa},{"$set": {"sitios.$[sitio].ocupado": True}},array_filters=[{"sitio.nombre":sitio.nombre}])
                     listaSitios.append(sitio)
                 else:
-                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [sitio.to_dict() for sitio in listaSitios]})   
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [sitio.to_dict() for sitio in listaSitios],"atendido": False,"creada": datetime.utcnow()})   
                     break
             # si despues de reservar los sitios, no quedan sitios libres, se ocupa la barra
             if  len(sitiosLibres) - capacidadDeseada == 0:
@@ -196,7 +200,7 @@ class ControllerAdministrador:
             if mesa.capacidad == capacidadDeseada and mesa.ubicacion == lugar:
                 mesa.ocupada = True
                 coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
-                coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()]})   
+                coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()],"atendido": False,"creada": datetime.utcnow()})   
                 print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                 return
         
@@ -213,7 +217,7 @@ class ControllerAdministrador:
                 if mesa.capacidad > capacidadDeseada and mesa.ubicacion == lugar:
                     mesa.ocupada = True
                     coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
-                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()]})   
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()],"atendido": False,"creada": datetime.utcnow()})   
                     print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
                     return
             # si no hay ninguna mesa grande en la que puedan entrar todos, se buscan combinaciones de mesas
@@ -234,7 +238,7 @@ class ControllerAdministrador:
             mesa.ocupada = True
             coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
             
-        coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict() for mesa in mesasDisponibles]})    
+        coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict() for mesa in mesasDisponibles],"atendido": False,"creada": datetime.utcnow()})    
             
         print("Se han reservado correctamente las mesas: "+texto)
         
@@ -274,7 +278,45 @@ class ControllerAdministrador:
         listaReservas = coleccion_reservas.find()
         for reserva in listaReservas:
             print(reserva)
-    
+    def comprobarReservas(self):
+        """
+        Método que comprueba las reservas, si ha pasado mas de una hora desde que se hizo y 
+        el cliente no ha llegado, se elimina la reserva
+        """
+        coleccion_reservas = self._baseDatos["reservas"]
+        coleccion_mesas = self._baseDatos["mesas"]
+        
+        una_hora_atras = datetime.utcnow() - timedelta(hours=1)
+
+        consultaReserva = {
+            "atendido": False,
+            "creada": {"$lt": una_hora_atras}
+        }
+
+        reservas =  coleccion_reservas.find(consultaReserva)
+        
+        
+        for reserva in reservas:
+            for mesa_reservada in reserva.get('mesas', []):
+                mesa =  coleccion_mesas.find_one({"nombre_mesa": mesa_reservada["nombre_mesa"]})
+                if mesa:
+                    print("hay mesa")
+                    sitios_actualizados = []
+                    for sitio in mesa.get('sitios', []):
+                        
+                        if sitio['nombre'] in mesa_reservada.get('sitios', []):
+                            sitio['ocupado'] = False
+                        sitios_actualizados.append(sitio)
+
+
+                    coleccion_mesas.update_one(
+                        {"nombre_mesa": mesa_reservada["nombre_mesa"]},
+                        {"$set": {"sitios": sitios_actualizados,"ocupada": False}}
+                    )
+
+            
+            coleccion_reservas.delete_one({"dni": reserva['dni']})
+            print("Reserva de "+reserva["dni"]+" eliminada")
     def devolverString(self,campo,textoMostrar):
         try:
             valor= str(input(textoMostrar))
