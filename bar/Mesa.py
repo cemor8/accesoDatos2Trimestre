@@ -51,7 +51,7 @@ class Mesa:
     def sitios(self):
         return self._sitios
     @sitios.setter
-    def capacidadActual(self, valor):
+    def sitios(self, valor):
         self._sitios = valor
         
     def to_dict(self):

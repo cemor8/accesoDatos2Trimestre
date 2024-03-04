@@ -182,7 +182,8 @@ class ControllerAdministrador:
                     coleccion_mesas.update_many({"nombre_mesa" : mesa.nombre_mesa},{"$set": {"sitios.$[sitio].ocupado": True}},array_filters=[{"sitio.nombre":sitio.nombre}])
                     listaSitios.append(sitio)
                 else:
-                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [sitio.to_dict() for sitio in listaSitios],"atendido": False,"creada": datetime.utcnow()})   
+                    mesa.sitios = listaSitios
+                    coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()],"atendido": False,"creada": datetime.utcnow()})   
                     break
             # si despues de reservar los sitios, no quedan sitios libres, se ocupa la barra
             if  len(sitiosLibres) - capacidadDeseada == 0:
@@ -317,6 +318,7 @@ class ControllerAdministrador:
             
             coleccion_reservas.delete_one({"dni": reserva['dni']})
             print("Reserva de "+reserva["dni"]+" eliminada")
+            
     def devolverString(self,campo,textoMostrar):
         try:
             valor= str(input(textoMostrar))
