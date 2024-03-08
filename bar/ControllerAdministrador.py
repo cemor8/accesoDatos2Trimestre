@@ -41,6 +41,7 @@ class ControllerAdministrador:
             5. Cambiar Estado Pedido
             6. Ver Facturas
             7. Comprobar Reservas
+            8. Ver Reservas
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
