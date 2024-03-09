@@ -1,11 +1,37 @@
+from Consumicion import Consumicion
 class MenuComprar:
-    def __init__(self, primero, segundo, bebida, dia, precio):
+    def __init__(self, primero, segundo, bebida, dia, precio, cantidad):
         self._primero = primero
         self._segundo = segundo
         self._bebida = bebida
         self._dia = dia
         self._precio = precio
+        self._cantidad = cantidad
 
+    @classmethod
+    def from_dict(cls, dict_data):
+        primero = dict_data.get('primero')
+        primero = Consumicion.from_dict(primero)
+        segundo = dict_data.get('segundo')
+        segundo = Consumicion.from_dict(segundo)
+        bebida = dict_data.get('bebida')
+        bebida = Consumicion.from_dict(bebida)
+        return cls(
+            primero=primero,
+            segundo=segundo,
+            bebida=bebida,
+            dia=dict_data.get('dia', ''),
+            precio=dict_data.get('precio', 0),
+            cantidad=dict_data.get('cantidad', 0)
+        )
+    @property
+    def cantidad(self):
+        return self._cantidad
+
+    @cantidad.setter
+    def cantidad(self, valor):
+        self._cantidad = valor
+    
     @property
     def primero(self):
         return self._primero
@@ -53,7 +79,15 @@ class MenuComprar:
             "bebida": self._bebida,
             "dia": self._dia,
             "precio": self._precio,
+            "cantidad": self._cantidad
         }
 
     def __str__(self):
-        return f"MenuComprar(primero={self._primero}, segundo={self._segundo}, bebida={self._bebida}, dia={self._dia}, precio={self._precio})"
+        return (
+            "Menú:\n"
+            f"      Primero: {self._primero}\n"
+            f"      Segundo: {self._segundo}\n"
+            f"      Bebida: {self._bebida}\n"
+            f"    Precio: {self._precio}\n"
+            f"    Cantidad: {self._cantidad}\n"
+        )

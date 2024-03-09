@@ -6,7 +6,19 @@ class Mesa:
         self._ubicacion = ubicacion
         self._capacidad = capacidad
         self._sitios = sitios
-
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Crea una instancia de Mesa a partir de un diccionario.
+        """
+        sitios = [Sitio.from_dict(sitio) for sitio in data.get('sitios', [])]
+        return cls(
+            nombre_mesa=data.get('nombre_mesa'),
+            ocupada=data.get('ocupada', False),
+            ubicacion=data.get('ubicacion', 'interior'),
+            capacidad=data.get('capacidad', 1),
+            sitios=sitios
+        )
     @property
     def nombre_mesa(self):
         return self._nombre_mesa

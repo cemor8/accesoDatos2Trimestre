@@ -1,3 +1,5 @@
+from Consumicion import Consumicion
+from MenuComprar import MenuComprar
 class Pedido:
     def __init__(self,nombre_mesa, id, consumiciones,menus,estado,precio):
         self._id = id
@@ -6,6 +8,23 @@ class Pedido:
         self._menus = menus
         self._estado = estado
         self._precio = precio
+
+    @classmethod
+    def from_dict(cls, doc):
+        """
+        Crea una instancia de Pedido a partir de un diccionario .
+        """
+        consumiciones = [Consumicion.from_dict(c) for c in doc.get("consumiciones", [])]
+        menus = [MenuComprar.from_dict(m) for m in doc.get("menus", [])]
+
+        return cls(
+            id=doc["id"],
+            nombre_mesa=doc.get("nombre_mesa"),
+            consumiciones=consumiciones,
+            menus=menus,
+            estado=doc.get("estado"),
+            precio=doc.get("precio")
+        )
         
     @property
     def id(self):
@@ -60,6 +79,25 @@ class Pedido:
             "precio": self._precio,
         }
     def __str__(self):
-        consumiciones_str = ", ".join([str(consumicion) for consumicion in self._consumiciones])
-        menus_str = ", ".join([str(menu) for menu in self._menus])
-        return f"Pedido(id={self._id}, Mesa={self._nombre_mesa} , consumiciones=[{consumiciones_str}], menus=[{menus_str}], estado={self._estado}, precio={self._precio})"
+        
+        if self._consumiciones:
+            consumiciones_str = "\n    ".join([consumicion.to_string_cantidad() for consumicion in self._consumiciones])
+        else:
+            consumiciones_str = "Vacío"
+        
+        
+        if self._menus:
+            menus_str = "\n    ".join([str(menu) for menu in self._menus])
+        else:
+            menus_str = "Vacío"
+
+        return (
+            f"Pedido:\n"
+            f"  ID: {self._id}\n"
+            f"  Mesa: {self._nombre_mesa}\n"
+            f"  Consumiciones:\n    {consumiciones_str}\n"
+            f"  Menús:\n\n    {menus_str}\n"
+            f"  Estado: {self._estado}\n"
+            f"  Precio: {self._precio}\n"
+            f"───────────────────────────────"
+        )

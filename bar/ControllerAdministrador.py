@@ -1,7 +1,8 @@
 from Mesa import Mesa
 from Sitio import Sitio
 from datetime import datetime, timedelta
-
+from Pedido import Pedido
+from Reserva import Reserva
 class ControllerAdministrador:
     def __init__(self, administrador, baseDatos):
         self._administrador = administrador
@@ -36,12 +37,11 @@ class ControllerAdministrador:
         print("""
             1. Mostrar Mesas
             2. Reservar Mesa
-            3. Liberar Mesa
-            4. Ver Pedidos
-            5. Cambiar Estado Pedido
-            6. Ver Facturas
-            7. Comprobar Reservas
-            8. Ver Reservas
+            3. Ver Pedidos
+            4. Cambiar Estado Pedido
+            5. Ver Facturas
+            6. Comprobar Reservas
+            7. Ver Reservas
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -55,8 +55,14 @@ class ControllerAdministrador:
             self.mostrarMesas()
         elif numero == 2:
             self.reservarMesa()
-        elif numero == 7:
+        elif numero == 3:
+            self.verPedidos()
+        elif numero == 4:
+            self.cambiarEstadoPedido()
+        elif numero == 6:
             self.comprobarReservas()
+        elif numero == 7:
+            self.verReservas()
         self.mostrarMenu()
     def mostrarMesas(self):
         """
@@ -278,7 +284,8 @@ class ControllerAdministrador:
         """
         coleccion_reservas = self._baseDatos["reservas"]
         listaReservas = coleccion_reservas.find()
-        for reserva in listaReservas:
+        reservas = [Reserva.from_dict(reserva) for reserva in listaReservas]
+        for reserva in reservas:
             print(reserva)
     def comprobarReservas(self):
         """
@@ -319,7 +326,50 @@ class ControllerAdministrador:
             
             coleccion_reservas.delete_one({"dni": reserva['dni']})
             print("Reserva de "+reserva["dni"]+" eliminada")
-            
+
+    def verPedidos(self):
+        """
+        Método que muestra todos los pedidos en curso en el restaurante
+        """
+        coleccion_pedidos = self._baseDatos["pedidos"]
+        listaPedidos = coleccion_pedidos.find()
+        pedidos = [Pedido.from_dict(pedido) for pedido in listaPedidos]
+        for pedido in pedidos:
+            print(pedido)
+    def cambiarEstadoPedido(self):
+        """
+        Método que cambia el estado de un pedido
+        """
+        coleccion_pedidos = self._baseDatos["pedidos"]
+        idPedidoCambiar = self.devolverInt("Introduce el id del pedido: ")
+        pedidoCambiar = coleccion_pedidos.find_one({"id": idPedidoCambiar})
+        if pedidoCambiar:
+            print("""
+                1. Libre
+                2. Confirmado
+                3. Preparando
+                4. Servido
+                """)
+            estado = self.devolverInt("Introduce una opcion: ")
+
+            estados = {
+                1: "Libre",
+                2: "Confirmado",
+                3: "Preparando",
+                4: "Servido"
+            }
+            estado_seleccionado = estados.get(estado, None)
+
+            if estado_seleccionado:
+                resultado = coleccion_pedidos.update_one({"id": idPedidoCambiar}, {"$set": {"estado": estado_seleccionado}})
+                if resultado.modified_count > 0:
+                    print("El estado del pedido ha sido actualizado a:", estado_seleccionado)
+                else:
+                    print("No se ha podido actualizar el estado del pedido.")
+            else:
+                print("Opción no válida.")
+        else:
+            print("Pedido no encontrado.")
     def devolverString(self,campo,textoMostrar):
         try:
             valor= str(input(textoMostrar))
@@ -330,3 +380,11 @@ class ControllerAdministrador:
         except ValueError:
             print("Contenido inválido")
             self.devolverString(campo,textoMostrar)
+
+    def devolverInt(self,textoMostrar):
+        try:
+            valor= int(input(textoMostrar))
+            return valor
+        except ValueError:
+            print("Error al pedir int")
+            self.devolverInt(textoMostrar)
