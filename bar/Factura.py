@@ -1,3 +1,5 @@
+from Consumicion import Consumicion
+from MenuComprar import MenuComprar
 class Factura:
     def __init__(self, id, nombre_mesa, consumiciones, menus, precio):
         self._id = id
@@ -5,7 +7,21 @@ class Factura:
         self._consumiciones = consumiciones  # Suponemos que es una lista de instancias de Consumicion
         self._menus = menus  # Suponemos que es una lista de instancias de Menu
         self._precio = precio
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Crea una instancia de Factura a partir de un diccionario.
+        """
+        consumiciones = [Consumicion.from_dict(c) for c in data.get('consumiciones', [])]
+        menus = [MenuComprar.from_dict(m) for m in data.get('menus', [])]
 
+        return cls(
+            id=data.get('id'),
+            nombre_mesa=data.get('nombre_mesa', ''),
+            consumiciones=consumiciones,
+            menus=menus,
+            precio=data.get('precio', 0.0)
+        )
     @property
     def id(self):
         return self._id
@@ -56,6 +72,14 @@ class Factura:
         }
 
     def __str__(self):
-        consumiciones_str = ", ".join([str(consumicion) for consumicion in self._consumiciones])
-        menus_str = ", ".join([str(menu) for menu in self._menus])
-        return f"Factura(id={self._id}, nombre_mesa={self._nombre_mesa}, consumiciones=[{consumiciones_str}], menus=[{menus_str}], precio={self._precio})"
+        consumiciones_str = "\n      ".join([consumicion.to_string_cantidad() for consumicion in self._consumiciones]) if self._consumiciones else "Ninguna"
+        menus_str = "\n      ".join([str(menu) for menu in self._menus]) if self._menus else "Ninguno"
+        return (
+            "Factura:\n"
+            f"  ID: {self._id}\n"
+            f"  Mesa: {self._nombre_mesa}\n"
+            f"  Consumiciones:\n      {consumiciones_str}\n"
+            f"  Menús:\n      {menus_str}\n"
+            f"  Precio: {self._precio}\n"
+            "──────────────────────────────────"
+        )

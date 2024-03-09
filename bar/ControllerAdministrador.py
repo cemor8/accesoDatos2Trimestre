@@ -3,12 +3,17 @@ from Sitio import Sitio
 from datetime import datetime, timedelta
 from Pedido import Pedido
 from Reserva import Reserva
+from Factura import Factura
+import re
+import sys
 class ControllerAdministrador:
     def __init__(self, administrador, baseDatos):
         self._administrador = administrador
         self._baseDatos = baseDatos
         self._exrpesiones = {
-            "lugar" : ""
+            "lugar" : "^(interior|terraza|barra)$",
+            "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
+
         }
     @property
     def administrador(self):
@@ -42,6 +47,7 @@ class ControllerAdministrador:
             5. Ver Facturas
             6. Comprobar Reservas
             7. Ver Reservas
+            8. Salir
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -59,10 +65,14 @@ class ControllerAdministrador:
             self.verPedidos()
         elif numero == 4:
             self.cambiarEstadoPedido()
+        elif numero == 5:
+            self.verFacturas()
         elif numero == 6:
             self.comprobarReservas()
         elif numero == 7:
             self.verReservas()
+        elif numero == 8:
+            sys.exit(0)
         self.mostrarMenu()
     def mostrarMesas(self):
         """
@@ -154,6 +164,14 @@ class ControllerAdministrador:
             print("Error al introducir ubicación")
             return
         
+        coleccion_reservas = self._baseDatos["reservas"]
+        listaReservas = coleccion_reservas.find()
+        reservas = [Reserva.from_dict(reserva) for reserva in listaReservas]
+        for reserva in reservas:
+            if reserva.dni == dni:
+                print("Ya hay una reserva con ese dni")
+                return
+        print(dni)
         
         #se comprueba que haya capacidad suficiente actualmente en el restaurante
         
@@ -370,13 +388,22 @@ class ControllerAdministrador:
                 print("Opción no válida.")
         else:
             print("Pedido no encontrado.")
+    def verFacturas(self):
+        """
+        Método que muestra todas las facturas
+        """
+        coleccion_pedidos = self._baseDatos["facturas"]
+        listaFacturas = coleccion_pedidos.find()
+        facturas = [Factura.from_dict(factura) for factura in listaFacturas]
+        for factura in facturas:
+            print(factura)
     def devolverString(self,campo,textoMostrar):
         try:
             valor= str(input(textoMostrar))
-            #if re.match(self._expresionesRegulares.get(campo),valor):
-            return valor
-            #else:
-                #raise ValueError
+            if re.match(self._exrpesiones.get(campo),valor,re.IGNORECASE):
+                return valor
+            else:
+                raise ValueError
         except ValueError:
             print("Contenido inválido")
             self.devolverString(campo,textoMostrar)
