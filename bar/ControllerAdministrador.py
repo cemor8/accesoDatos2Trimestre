@@ -406,7 +406,7 @@ class ControllerAdministrador:
                 raise ValueError
         except ValueError:
             print("Contenido inválido")
-            self.devolverString(campo,textoMostrar)
+            return self.devolverString(campo,textoMostrar)
 
     def devolverInt(self,textoMostrar):
         try:
@@ -414,4 +414,4 @@ class ControllerAdministrador:
             return valor
         except ValueError:
             print("Error al pedir int")
-            self.devolverInt(textoMostrar)
+            return self.devolverInt(textoMostrar)

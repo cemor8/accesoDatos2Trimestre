@@ -399,7 +399,7 @@ def devolverString(campo,textoMostrar):
             raise ValueError
     except ValueError:
         print("Contenido inválido")
-        devolverString(campo,textoMostrar)
+        return devolverString(campo,textoMostrar)
 
 def devolverInt(textoMostrar):
     try:
@@ -407,6 +407,6 @@ def devolverInt(textoMostrar):
         return valor
     except ValueError:
         print("Error al introducir un valor")
-        devolverInt()
+        return devolverInt(textoMostrar)
         
 menu()
