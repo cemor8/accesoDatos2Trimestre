@@ -227,7 +227,7 @@ class ControllerAdministrador:
                 mesa.ocupada = True
                 coleccion_mesas.update_one({"nombre_mesa" : mesa.nombre_mesa},{"$set" : {"ocupada" : True}})
                 coleccion_reservas.insert_one({"dni" : dni,"mesas" : [mesa.to_dict()],"atendido": False,"creada": datetime.utcnow()})   
-                print("Reserva completada, se ha reservado :"+mesa.nombre_mesa + " en : "+lugar)
+                print("Reserva completada, se ha reservado la mesa con nombre: "+ mesa.nombre_mesa + " en: "+lugar)
                 return
         
         #se buscan las posibles combinaciones de mesas para cumplir la capacidad deseada
@@ -238,7 +238,7 @@ class ControllerAdministrador:
         if mesasDisponibles == None:
             #se intenta meter a la gente en una mesa mas grande
             mesasOrdenadas = listaMesas.copy()
-            mesasOrdenadas.sort(key = lambda mesa: mesa.capacidad, reverse=True)
+            mesasOrdenadas.sort(key = lambda mesa: mesa.capacidad, reverse=False)
             for mesa in mesasOrdenadas:
                 if mesa.capacidad > capacidadDeseada and mesa.ubicacion == lugar:
                     mesa.ocupada = True
