@@ -3,6 +3,7 @@ from Sitio import Sitio
 from datetime import datetime, timedelta
 from Pedido import Pedido
 from Reserva import Reserva
+from Consumicion import Consumicion
 from Factura import Factura
 import re
 import sys
@@ -13,6 +14,7 @@ class ControllerAdministrador:
         self._exrpesiones = {
             "lugar" : "^(interior|terraza|barra)$",
             "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
+            "nombreConsumicion" : ""
 
         }
     @property
@@ -47,7 +49,8 @@ class ControllerAdministrador:
             5. Ver Facturas
             6. Comprobar Reservas
             7. Ver Reservas
-            8. Salir
+            8. Gestionar Stock
+            9. Salir
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -72,6 +75,8 @@ class ControllerAdministrador:
         elif numero == 7:
             self.verReservas()
         elif numero == 8:
+            self.stock()
+        elif numero == 9:
             sys.exit(0)
         self.mostrarMenu()
     def mostrarMesas(self):
@@ -397,7 +402,202 @@ class ControllerAdministrador:
         facturas = [Factura.from_dict(factura) for factura in listaFacturas]
         for factura in facturas:
             print(factura)
+    def stock(self):
+        print("""
+            1. Añadir consumicion
+            2. Eliminar consumicion
+            3. Modificar consumicion
+            4. Modificar Menu
+            5. Volver
+            """)
+        
+    def meterConsumicion(self):
+        """
+        Método que se encarga de meter una consumicion en la base de datos, ya sea un plato o una bebida
+        """
+        print("""
+            1. Plato
+            2. Bebida
+            """)
+        opcion = self.devolverInt("Introduce el tipo de consumicion: ")
+        if opcion != 1 and opcion != 2:
+            print("opción inválida")
+            return
+        coleccion = None
+        if opcion == 1:
+            coleccion = self.baseDatos["platos"]
+        elif opcion == 2:
+            coleccion = self.baseDatos["bebidas"]
+                
+        listaDocs = coleccion.find()
+        consumiciones = [Consumicion.from_dict(consumicion) for consumicion in listaDocs]
+        
+        
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
+        
+        if any(consumicion.nombre == nombre for consumicion in consumiciones):
+            print("Ya existe una consumición con ese nombre. Por favor, introduce un nombre diferente.")
+            return
+        
+        precio = self.devolverDouble("Introduce el precio de la consumicion")
+        cantidad = self.devolverDouble("Introduce la cantidad de la consumcion")
+        try:
+            if cantidad < 1 or precio < 2:
+                print("Datos inválidos")
+                return
+        except:
+            print("Error")
+            return
+        nueva_consumicion = {"nombre": nombre, "precio": precio, "cantidad": cantidad}
+        coleccion.append(nueva_consumicion)
+        print("Consumición añadida correctamente.")
+        
+    def eliminarConsumicion(self):
+        """
+        Método que se encarga de eliminar una consumicion de la base de datos, ya sea bebida o plato, lo elimina tambien de los
+        menus
+        """
+        
+        print("""
+            1. Plato
+            2. Bebida
+            """)
+        opcion = self.devolverInt("Introduce el tipo de consumicion: ")
+        if opcion != 1 and opcion != 2:
+            print("opción inválida")
+            return
+        coleccion = None
+        if opcion == 1:
+            coleccion = self.baseDatos["platos"]
+        elif opcion == 2:
+            coleccion = self.baseDatos["bebidas"]
+                
+        listaDocs = coleccion.find()
+        consumiciones = [Consumicion.from_dict(consumicion) for consumicion in listaDocs]
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
+        if any(consumicion.nombre == nombre for consumicion in consumiciones):
+            coleccion.delete_one({"nombre": nombre})
+            
+            coleccionMenus = self.baseDatos["menus"]
+            coleccionMenus.update_many({}, {"$pull": {"primeros": {"nombre": nombre},"segundos": {"nombre": nombre},"bebidas": {"nombre": nombre}}})
+            
+            print("Consumicion eliminada correctamente")
+            return
+        else:
+            print("Consumicion no encontrada")
+    def modificarConsumicion(self):
+        """
+        Método que se encarga de modificar una consumicion
+        """
+        print("""
+            1. Plato
+            2. Bebida
+            """)
+        opcion = self.devolverInt("Introduce el tipo de consumicion: ")
+        if opcion != 1 and opcion != 2:
+            print("opción inválida")
+            return
+        coleccion = None
+        if opcion == 1:
+            coleccion = self.baseDatos["platos"]
+        elif opcion == 2:
+            coleccion = self.baseDatos["bebidas"]    
+        
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion a modificar")
+        consumicion = coleccion.find_one({"nombre": nombre})
+        if consumicion:
+            nuevoNombre = self.devolverString("nombreConsumicion","Introduce el nombre nuevo")
+            consumicionTest = coleccion.find_one({"nombre": nuevoNombre})
+            if consumicionTest:
+                print("nombre inválido")
+                return
+            precio = self.devolverDouble("Introduce el precio de la consumicion")
+            cantidad = self.devolverDouble("Introduce la cantidad de la consumcion")
+            try:
+                if cantidad < 1 or precio < 2:
+                    print("Datos inválidos")
+                    return
+            except:
+                print("Error")
+                return
+            coleccion.update_one({"nombre": nombre}, {"$set" : { "nombre" : nuevoNombre, "cantidad" : cantidad, "precio" : precio}})
+            coleccionMenus = self.baseDatos["menus"]
+            coleccionMenus.menus.update_many({"primeros.nombre": nombre},[{"$set": {"primeros.$[elem].nombre": nuevoNombre,"primeros.$[elem].cantidad": cantidad,"primeros.$[elem].precio": precio}}],array_filters=[{"elem.nombre": nombre}],upsert=False)
+            print("Consumicion actualizada correctamente")
+        else:
+            print("Consumicion no encontrada")
+        
+    def modificarMenu(self):
+        """
+        Método que se encarga de añadir o eliminar una consumicion en un menú
+        """
+            
+        print("""
+            1. Primeros
+            2. Segundos
+            3. Bebidas
+            """)
+        
+        opcion = self.devolverInt("Introduce la opcion correspondiente a la lista modificar: ")
+        coleccion_consumiciones = None
+        lista = None
+        if opcion == 1:
+            coleccion_consumiciones = self.baseDatos["platos"]
+            lista = "primeros"
+        elif opcion == 2: 
+            coleccion_consumiciones = self.baseDatos["platos"]
+            lista = "segundos"
+        elif opcion == 3:
+            coleccion_consumiciones = self.baseDatos["bebidas"]
+            lista = "bebidas"
+        else:
+            print("Opción inválida")
+            return
+        print("""
+            1. Añadir
+            2. Eliminar
+            """)
+        opcion = self.devolverInt("Introduce la opcion correspondiente ")
+        operacion = None
+        if opcion == 1:
+            operacion = "añadir"
+        elif opcion == 2: 
+            operacion = "eliminar"
+        else:
+            print("Opción inválida")
+            return
+        
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
+        diaMenu = self.devolverString("diaMenu","Introduce el día del menú")
+        consumicion = coleccion_consumiciones.find_one({"nombre": nombre})
+        
+        if consumicion:
+            if operacion == "añadir":
+                #añadir sin duplicado addToSet
+                self.baseDatos["menus"].update_one(
+                    {"dia" : diaMenu},
+                    {"$addToSet": {lista: consumicion}}
+                )
+                print("Consumición añadida correctamente.")
+            elif operacion == "eliminar":
+                documento = self.baseDatos["menus"].find_one({"dia": diaMenu, lista: {"$elemMatch": {"nombre": consumicion["nombre"]}}})
+                
+                if not documento:
+                    print("La lista no contiene esa consumicion")
+                    return
+                
+                self.baseDatos["menus"].update_one(
+                    {"dia" : diaMenu }, 
+                    {"$pull": {lista:{"nombre" : consumicion["nombre"]}}}
+                )
+                print("Consumición eliminada correctamente.")
+        else:
+            print("Consumicion no encontrada")
+        
     def devolverString(self,campo,textoMostrar):
+        """
+        Método que devuelve una string
+        """
         try:
             valor= str(input(textoMostrar))
             if re.match(self._exrpesiones.get(campo),valor,re.IGNORECASE):
@@ -409,9 +609,24 @@ class ControllerAdministrador:
             return self.devolverString(campo,textoMostrar)
 
     def devolverInt(self,textoMostrar):
+        """
+        Método que devuelve un numero entero
+        """
         try:
             valor= int(input(textoMostrar))
             return valor
         except ValueError:
             print("Error al pedir int")
             return self.devolverInt(textoMostrar)
+    def devolverDouble(self,textoMostrar):
+        """
+        Método que devuelve un double
+        """
+        try:
+            valor= float(input(textoMostrar))
+            if valor < 1:
+                raise ValueError
+            return valor
+        except ValueError:
+            print("Error al pedir int")
+            return self.devolverDouble(textoMostrar)
