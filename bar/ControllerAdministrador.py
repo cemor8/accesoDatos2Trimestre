@@ -403,6 +403,11 @@ class ControllerAdministrador:
         for factura in facturas:
             print(factura)
     def stock(self):
+        """
+        Método que se encarga de mostrar el menú para modificar el stock de 
+        los pedidos
+        """
+        
         print("""
             1. Añadir consumicion
             2. Eliminar consumicion
@@ -410,6 +415,26 @@ class ControllerAdministrador:
             4. Modificar Menu
             5. Volver
             """)
+        try:
+            numero = int(input("Selecciona una opcion: \n"))
+            if numero<1 or numero > 5:
+                self.mostrarMenu()
+                
+        except ValueError:
+            print("error al introducir numero")
+            self.stock()
+        if numero == 1:
+            self.meterConsumicion()
+        elif numero == 2:
+            self.eliminarConsumicion()
+        elif numero == 3:
+            self.modificarConsumicion()
+        elif numero == 4:
+            self.modificarMenu()
+        elif numero == 5:
+            self.mostrarMenu()
+        self.stock()
+        
         
     def meterConsumicion(self):
         """
@@ -457,7 +482,6 @@ class ControllerAdministrador:
         Método que se encarga de eliminar una consumicion de la base de datos, ya sea bebida o plato, lo elimina tambien de los
         menus
         """
-        
         print("""
             1. Plato
             2. Bebida
