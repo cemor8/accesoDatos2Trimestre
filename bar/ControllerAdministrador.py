@@ -458,14 +458,14 @@ class ControllerAdministrador:
         consumiciones = [Consumicion.from_dict(consumicion) for consumicion in listaDocs]
         
         
-        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion: ")
         
         if any(consumicion.nombre == nombre for consumicion in consumiciones):
             print("Ya existe una consumición con ese nombre. Por favor, introduce un nombre diferente.")
             return
         
-        precio = self.devolverDouble("Introduce el precio de la consumicion")
-        cantidad = self.devolverDouble("Introduce la cantidad de la consumcion")
+        precio = self.devolverDouble("Introduce el precio de la consumicion: ")
+        cantidad = self.devolverDouble("Introduce la cantidad de la consumcion: ")
         try:
             if cantidad < 1 or precio < 2:
                 print("Datos inválidos")
@@ -474,7 +474,7 @@ class ControllerAdministrador:
             print("Error")
             return
         nueva_consumicion = {"nombre": nombre, "precio": precio, "cantidad": cantidad}
-        coleccion.append(nueva_consumicion)
+        coleccion.insert_one(nueva_consumicion)
         print("Consumición añadida correctamente.")
         
     def eliminarConsumicion(self):
@@ -498,7 +498,7 @@ class ControllerAdministrador:
                 
         listaDocs = coleccion.find()
         consumiciones = [Consumicion.from_dict(consumicion) for consumicion in listaDocs]
-        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion: ")
         if any(consumicion.nombre == nombre for consumicion in consumiciones):
             coleccion.delete_one({"nombre": nombre})
             
@@ -532,7 +532,7 @@ class ControllerAdministrador:
         if consumicion:
             nuevoNombre = self.devolverString("nombreConsumicion","Introduce el nombre nuevo")
             consumicionTest = coleccion.find_one({"nombre": nuevoNombre})
-            if consumicionTest:
+            if consumicionTest and nombre != nuevoNombre:
                 print("nombre inválido")
                 return
             precio = self.devolverDouble("Introduce el precio de la consumicion")
