@@ -14,7 +14,7 @@ class ControllerAdministrador:
         self._exrpesiones = {
             "lugar" : "^(interior|terraza|barra)$",
             "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
-            "nombreConsumicion" : ""
+            "nombreConsumicion" : "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ \-]+$"
 
         }
     @property
