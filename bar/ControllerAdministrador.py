@@ -17,7 +17,6 @@ class ControllerAdministrador:
             "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
             "nombreConsumicion" : "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ \-]+$",
             "diaMenu" : "^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)$"
-
         }
         self._url = "http://192.168.1.42"
         self._db = "bitnami_odoo"
@@ -187,7 +186,7 @@ class ControllerAdministrador:
             if reserva.dni == dni:
                 print("Ya hay una reserva con ese dni")
                 return
-        print(dni)
+        
         
         #se comprueba que haya capacidad suficiente actualmente en el restaurante
         
@@ -196,8 +195,7 @@ class ControllerAdministrador:
             if mesa.ocupada == False and mesa.ubicacion == lugar:
                 capacidadActual+= mesa.capacidad
         
-        print(capacidadActual)
-        print(listaMesas)
+    
         if capacidadActual < capacidadDeseada:
             print("No hay capacidad en el restaurante")
             return
