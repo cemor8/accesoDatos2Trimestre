@@ -2,6 +2,7 @@ from Mesa import Mesa
 from Sitio import Sitio
 from datetime import datetime, timedelta
 from Pedido import Pedido
+import xmlrpc.client
 from Reserva import Reserva
 from Consumicion import Consumicion
 from Factura import Factura
@@ -14,9 +15,16 @@ class ControllerAdministrador:
         self._exrpesiones = {
             "lugar" : "^(interior|terraza|barra)$",
             "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
-            "nombreConsumicion" : "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ \-]+$"
+            "nombreConsumicion" : "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ \-]+$",
+            "diaMenu" : "^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)$"
 
         }
+        self._url = "http://192.168.1.42"
+        self._db = "bitnami_odoo"
+        self._usuario = "carlos@gmail.com"
+        self._contraseña = "12q12q12"
+        self._common = xmlrpc.client.ServerProxy('{}/xmlrpc/2/common'.format(self._url))
+        self._uid = self._common.authenticate(self._db, self._usuario, self._contraseña, {})
     @property
     def administrador(self):
         return self._administrador
@@ -50,7 +58,8 @@ class ControllerAdministrador:
             6. Comprobar Reservas
             7. Ver Reservas
             8. Gestionar Stock
-            9. Salir
+            9. Comprobar Mesas Odoo
+            10. Salir
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -76,8 +85,10 @@ class ControllerAdministrador:
             self.verReservas()
         elif numero == 8:
             self.stock()
-        elif numero == 9:
+        elif numero == 10:
             sys.exit(0)
+        elif numero == 9:
+            self.comprobarClientes()
         self.mostrarMenu()
     def mostrarMesas(self):
         """
@@ -475,6 +486,18 @@ class ControllerAdministrador:
             return
         nueva_consumicion = {"nombre": nombre, "precio": precio, "cantidad": cantidad}
         coleccion.insert_one(nueva_consumicion)
+        product_data = {
+            'name': nombre,
+            'type': 'product',
+            'list_price': precio,
+            'standard_price': precio,
+            'uom_id': 1, 
+            'uom_po_id': 1,
+            }
+        
+        models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+        product_id = models.execute_kw(self._db, self._uid, self._contraseña, 'product.template', 'create', [product_data])
+        print(product_id)
         print("Consumición añadida correctamente.")
         
     def eliminarConsumicion(self):
@@ -502,9 +525,22 @@ class ControllerAdministrador:
         if any(consumicion.nombre == nombre for consumicion in consumiciones):
             coleccion.delete_one({"nombre": nombre})
             
-            coleccionMenus = self.baseDatos["menus"]
+            coleccionMenus = self.baseDatos["menusdias"]
             coleccionMenus.update_many({}, {"$pull": {"primeros": {"nombre": nombre},"segundos": {"nombre": nombre},"bebidas": {"nombre": nombre}}})
             
+            try:
+                models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+                product_ids = models.execute_kw(self._db, self._uid, self._contraseña,
+                                'product.template', 'search',
+                                [[['name', '=', nombre]]])
+                if product_ids:
+                    product_id = product_ids[0]
+                else:
+                    print("Producto no encontrado.")
+                    return
+                models.execute_kw(self._db, self._uid, self._contraseña, 'product.template', 'unlink', [[product_id]])
+            except xmlrpc.client.Fault as e:
+                print(f"XML-RPC Fault: {e}")
             print("Consumicion eliminada correctamente")
             return
         else:
@@ -527,16 +563,16 @@ class ControllerAdministrador:
         elif opcion == 2:
             coleccion = self.baseDatos["bebidas"]    
         
-        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion a modificar")
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion a modificar: ")
         consumicion = coleccion.find_one({"nombre": nombre})
         if consumicion:
-            nuevoNombre = self.devolverString("nombreConsumicion","Introduce el nombre nuevo")
+            nuevoNombre = self.devolverString("nombreConsumicion","Introduce el nombre nuevo: ")
             consumicionTest = coleccion.find_one({"nombre": nuevoNombre})
             if consumicionTest and nombre != nuevoNombre:
                 print("nombre inválido")
                 return
-            precio = self.devolverDouble("Introduce el precio de la consumicion")
-            cantidad = self.devolverDouble("Introduce la cantidad de la consumcion")
+            precio = self.devolverDouble("Introduce el precio de la consumicion: ")
+            cantidad = self.devolverDouble("Introduce la cantidad de la consumcion: ")
             try:
                 if cantidad < 1 or precio < 2:
                     print("Datos inválidos")
@@ -545,8 +581,32 @@ class ControllerAdministrador:
                 print("Error")
                 return
             coleccion.update_one({"nombre": nombre}, {"$set" : { "nombre" : nuevoNombre, "cantidad" : cantidad, "precio" : precio}})
-            coleccionMenus = self.baseDatos["menus"]
-            coleccionMenus.menus.update_many({"primeros.nombre": nombre},[{"$set": {"primeros.$[elem].nombre": nuevoNombre,"primeros.$[elem].cantidad": cantidad,"primeros.$[elem].precio": precio}}],array_filters=[{"elem.nombre": nombre}],upsert=False)
+            coleccionMenus = self.baseDatos["menusdias"]
+            coleccionMenus.update_many({"primeros.nombre": nombre},{"$set": {"primeros.$[elem].nombre": nuevoNombre,"primeros.$[elem].cantidad": cantidad,"primeros.$[elem].precio": precio}},array_filters=[{"elem.nombre": nombre}],upsert=False)
+            coleccionMenus.update_many({"segundos.nombre": nombre},{"$set": {"segundos.$[elem].nombre": nuevoNombre,"segundos.$[elem].cantidad": cantidad,"segundos.$[elem].precio": precio}},array_filters=[{"elem.nombre": nombre}],upsert=False)
+            coleccionMenus.update_many({"bebidas.nombre": nombre},{"$set": {"bebidas.$[elem].nombre": nuevoNombre,"bebidas.$[elem].cantidad": cantidad,"bebidas.$[elem].precio": precio}},array_filters=[{"elem.nombre": nombre}],upsert=False)
+
+            updated_data = {
+                "name" : nuevoNombre,
+                'list_price': precio,
+            }
+
+            models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+
+            product_ids = models.execute_kw(self._db, self._uid, self._contraseña,
+                                'product.template', 'search',
+                                [[['name', '=', nombre]]])
+            
+            if product_ids:
+                product_id = product_ids[0]  # Tomamos el primer ID encontrado
+                print(f"ID del producto encontrado: {product_id}")
+            else:
+                print("Producto no encontrado.")
+
+            models.execute_kw(self._db, self._uid, self._contraseña, 'product.template', 'write', [[product_id], updated_data])
+
+            print(f"Producto con ID {product_id} ha sido actualizado")
+
             print("Consumicion actualizada correctamente")
         else:
             print("Consumicion no encontrada")
@@ -588,36 +648,89 @@ class ControllerAdministrador:
         elif opcion == 2: 
             operacion = "eliminar"
         else:
+            operacion = ""
             print("Opción inválida")
             return
         
-        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion")
-        diaMenu = self.devolverString("diaMenu","Introduce el día del menú")
+        nombre = self.devolverString("nombreConsumicion","Introduce el nombre de la consumicion: ")
+        diaMenu = self.devolverString("diaMenu","Introduce el día del menú: ")
         consumicion = coleccion_consumiciones.find_one({"nombre": nombre})
-        
+        print(lista)
+        print(consumicion["nombre"])
         if consumicion:
             if operacion == "añadir":
-                #añadir sin duplicado addToSet
-                self.baseDatos["menus"].update_one(
+                documento = self.baseDatos["menusdias"].find_one({"dia": diaMenu, lista: {"$elemMatch": {"nombre": consumicion["nombre"]}}})
+                print("documento")
+                print(documento)
+                if documento:
+                    print("Consumicion existente")
+                    return
+                self.baseDatos["menusdias"].update_one(
                     {"dia" : diaMenu},
                     {"$addToSet": {lista: consumicion}}
                 )
                 print("Consumición añadida correctamente.")
             elif operacion == "eliminar":
-                documento = self.baseDatos["menus"].find_one({"dia": diaMenu, lista: {"$elemMatch": {"nombre": consumicion["nombre"]}}})
+                documento = self.baseDatos["menusdias"].find_one({"dia": diaMenu, lista: {"$elemMatch": {"nombre": consumicion["nombre"]}}})
                 
                 if not documento:
                     print("La lista no contiene esa consumicion")
                     return
                 
-                self.baseDatos["menus"].update_one(
+                self.baseDatos["menusdias"].update_one(
                     {"dia" : diaMenu }, 
                     {"$pull": {lista:{"nombre" : consumicion["nombre"]}}}
                 )
                 print("Consumición eliminada correctamente.")
         else:
             print("Consumicion no encontrada")
+    def comprobarClientes(self):
+        coleccion_mesas = self._baseDatos["mesas"]
+        documentosMesas = coleccion_mesas.find()
+        listaMesas = []
+        for documento in documentosMesas:
+            sitios = []
+            if documento.get("sitios") is not None:
+                for sitio in documento["sitios"]:
+                    sitio = Sitio(
+                    nombre=sitio["nombre"],
+                    ocupado=sitio["ocupado"]
+                    )
+                    sitios.append(sitio)
+    
+            mesa = Mesa(
+                nombre_mesa=documento["nombre_mesa"],
+                ocupada= documento["ocupada"],
+                ubicacion=documento["ubicacion"],
+                capacidad=documento["capacidad"],
+                sitios=sitios
+            )
+            listaMesas.append(mesa)
+        models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+
+        for mesa in listaMesas:
+            if mesa.sitios:
+                for sitio in mesa.sitios:
+                    cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', '=', sitio.nombre], ['is_company', '=', False]]])
+                    if not cliente_ids:
+                        nuevo_cliente_id = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'create',
+                        [{
+                            'name': sitio.nombre,
+                            'is_company': False,
+                            'customer_rank': 1
+                        }])
+                        print(f"Cliente creado con ID: {nuevo_cliente_id} para {sitio.nombre}")
+            else:
+                cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', '=', mesa.nombre_mesa], ['is_company', '=', False]]])
+                nuevo_cliente_id = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'create',
+                        [{
+                            'name': mesa.nombre_mesa,
+                            'is_company': False,
+                            'customer_rank': 1
+                        }])
+                print(f"Cliente creado con ID: {nuevo_cliente_id} para {mesa.nombre_mesa}")
         
+
     def devolverString(self,campo,textoMostrar):
         """
         Método que devuelve una string
