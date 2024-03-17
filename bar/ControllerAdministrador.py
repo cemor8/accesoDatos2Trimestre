@@ -12,11 +12,12 @@ class ControllerAdministrador:
     def __init__(self, administrador, baseDatos):
         self._administrador = administrador
         self._baseDatos = baseDatos
-        self._exrpesiones = {
+        self._expresiones = {
             "lugar" : "^(interior|terraza|barra)$",
             "dni" : "^[0-9]{8}[A-HJ-NP-TV-Z]$",
             "nombreConsumicion" : "^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ \-]+$",
-            "diaMenu" : "^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)$"
+            "diaMenu" : "^(lunes|martes|miércoles|jueves|viernes|sábado|domingo)$",
+            "nombreMesa" : "^(Interior|Terraza|Sitio)\d+$"
         }
         self._url = "http://192.168.1.42"
         self._db = "bitnami_odoo"
@@ -58,7 +59,9 @@ class ControllerAdministrador:
             7. Ver Reservas
             8. Gestionar Stock
             9. Comprobar Mesas Odoo
-            10. Salir
+            10. Comprobar Productos Odoo
+            11. Gestionar Mesas
+            12. Salir
             """)
         try:
             numero = int(input("Selecciona una opcion: \n"))
@@ -84,10 +87,14 @@ class ControllerAdministrador:
             self.verReservas()
         elif numero == 8:
             self.stock()
-        elif numero == 10:
+        elif numero == 12:
             sys.exit(0)
         elif numero == 9:
             self.comprobarClientes()
+        elif numero == 10:
+            self.comprobarConsumiciones()
+        elif numero == 11:
+            self.gestionarMesa()
         self.mostrarMenu()
     def mostrarMesas(self):
         """
@@ -709,7 +716,7 @@ class ControllerAdministrador:
         for mesa in listaMesas:
             if mesa.sitios:
                 for sitio in mesa.sitios:
-                    cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', '=', sitio.nombre], ['is_company', '=', False]]])
+                    cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', 'ilike', sitio.nombre], ['is_company', '=', False]]])
                     if not cliente_ids:
                         nuevo_cliente_id = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'create',
                         [{
@@ -719,15 +726,99 @@ class ControllerAdministrador:
                         }])
                         print(f"Cliente creado con ID: {nuevo_cliente_id} para {sitio.nombre}")
             else:
-                cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', '=', mesa.nombre_mesa], ['is_company', '=', False]]])
-                nuevo_cliente_id = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'create',
-                        [{
-                            'name': mesa.nombre_mesa,
-                            'is_company': False,
-                            'customer_rank': 1
-                        }])
-                print(f"Cliente creado con ID: {nuevo_cliente_id} para {mesa.nombre_mesa}")
+                cliente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', 'ilike', mesa.nombre_mesa], ['is_company', '=', False]]])
+                if not cliente_ids:
+                    nuevo_cliente_id = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'create',
+                            [{
+                                'name': mesa.nombre_mesa,
+                                'is_company': False,
+                                'customer_rank': 1
+                            }])
+                    print(f"Mesa/Sitio creado con ID: {nuevo_cliente_id} para {mesa.nombre_mesa}")
         
+    def gestionarMesa(self):
+        coleccion_mesas = self._baseDatos["mesas"]
+        print("""
+            1. Añadir
+            2. Eliminar
+            """)
+        opcion = self.devolverInt("Introduce la opcion correspondiente ")
+        operacion = None
+        if opcion == 1:
+            operacion = "añadir"
+        elif opcion == 2: 
+            operacion = "eliminar"
+        else:
+            operacion = ""
+            print("Opción inválida")
+            return
+        nombre = self.devolverString("nombreMesa","Introduce el nombre de la mesa: ")
+        ubicacion = self.devolverString("lugar","Introduce la ubicación: ")
+        if ubicacion == "barra":
+            nombreSitio = self.devolverString("nombreMesa","Introduce el del sitio: ")
+            mesaEncontrada = coleccion_mesas.find_one({"ubicacion" : ubicacion, "sitios": {"$elemMatch": {"nombre": nombreSitio}}})
+            if mesaEncontrada:
+                if operacion == "añadir":
+                    print("sitio existente en la barra")
+                    return
+                elif operacion == "eliminar":
+                    coleccion_mesas.update_one({"ubicacion" : ubicacion},{"$pull": { "sitios": {"nombre": nombreSitio}}})
+                    self.eliminarCliente(nombreSitio)
+            else:
+                nuevo_sitio = {"nombre" : nombreSitio, "ocupado" : False}
+                coleccion_mesas.update_one({"ubicacion": ubicacion},{"$push": {"sitios": nuevo_sitio}})
+                self.comprobarClientes()    
+            
+        else:
+            mesaEncontrada = coleccion_mesas.find_one({"nombre_mesa" : nombre , "ubicacion" : ubicacion})
+            if mesaEncontrada and operacion == "eliminar":
+                coleccion_mesas.delete_one({"nombre_mesa" : nombre, "ubicacion" : ubicacion})
+                self.eliminarCliente(nombre)
+            elif not mesaEncontrada and operacion == "añadir":
+                capacidad = self.devolverInt("Introduce la capacidad de la mesa: ")
+                if capacidad < 1 or capacidad > 25:
+                    print("capacidad inválida")
+                    return
+                nuevaMesa = {"nombre_mesa" : nombre, "ocupada" : False, "ubicacion" : ubicacion, "capacidad" : capacidad, "sitios" : []}
+                coleccion_mesas.insert_one(nuevaMesa)
+                self.comprobarClientes()
+            
+    def eliminarCliente(self, nombre):
+        """
+        Método que se encarga de eliminar una mesa de odoo
+        """
+        models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+        partner_ids = models.execute_kw(self._db, self._uid, self._contraseña,'res.partner', 'search',[[['name', '=', nombre], ['is_company', '=', False]]],)
+        if partner_ids:
+            models.execute_kw(self._db, self._uid, self._contraseña, 'res.partner', 'unlink', [partner_ids])
+            print("Mesa/Sitio ",nombre, " eliminado")
+        else:
+            print("Mesa/Sitio no encontrado.")
+    def comprobarConsumiciones(self):
+        """
+        Método que se encarga de comprobar las consumiciones en la base de datos de odoo,
+        si no hay alguna la crea
+        """
+
+
+        models = xmlrpc.client.ServerProxy('{}/xmlrpc/2/object'.format(self._url))
+        coleccion = self._baseDatos["platos"]
+        lista1 = coleccion.find()
+        platos = [Consumicion.from_dict(consumicion) for consumicion in lista1]
+        coleccion = self._baseDatos["bebidas"]
+        lista2 = coleccion.find()
+        bebidas = [Consumicion.from_dict(consumicion) for consumicion in lista2]
+        for bebida in bebidas:
+            producto_existente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'product.template', 'search',[[['name', 'ilike', bebida.nombre]]],)
+            if not producto_existente_ids:
+                nuevo_producto_id = models.execute_kw(self._db, self._uid, self._contraseña,'product.template', 'create',[{'name': bebida.nombre,'list_price': bebida.precio}],)
+                print(f"Producto creado: {bebida.nombre} con ID {nuevo_producto_id}")
+        for plato in platos:
+            producto_existente_ids = models.execute_kw(self._db, self._uid, self._contraseña,'product.template', 'search',[[['name', 'ilike', plato.nombre]]],)
+            if not producto_existente_ids:
+                nuevo_producto_id = models.execute_kw(self._db, self._uid, self._contraseña,'product.template', 'create',[{'name': plato.nombre,'list_price': plato.precio}],)
+                print(f"Producto creado: {plato.nombre} con ID {nuevo_producto_id}")
+
 
     def devolverString(self,campo,textoMostrar):
         """
@@ -735,7 +826,7 @@ class ControllerAdministrador:
         """
         try:
             valor= str(input(textoMostrar))
-            if re.match(self._exrpesiones.get(campo),valor,re.IGNORECASE):
+            if re.match(self._expresiones.get(campo),valor,re.IGNORECASE):
                 return valor
             else:
                 raise ValueError
